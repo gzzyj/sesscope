@@ -6,11 +6,31 @@
 package toolsem
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 
 	"github.com/zhouyuejie/opencode-trace/internal/session"
 )
+
+// Unwrap 把"被编码成 JSON 字符串的参数"还原成对象/文本字节。
+// dsh、codex 都把 arguments 存成 JSON 字符串（里面再套一层 JSON），不拆这一层
+// 会让页面显示一坨转义内容，也让工具语义识别不到 command/path。
+func Unwrap(args []byte) []byte {
+	trimmed := bytes.TrimSpace(args)
+	if len(trimmed) < 2 || trimmed[0] != 34 { // 34 = 双引号
+		return args
+	}
+	var text string
+	if err := json.Unmarshal(trimmed, &text); err != nil {
+		return args
+	}
+	inner := strings.TrimSpace(text)
+	if strings.HasPrefix(inner, "{") || strings.HasPrefix(inner, "[") {
+		return []byte(inner)
+	}
+	return []byte(text)
+}
 
 // Classify 返回工具语义类别、归一化目标（文件/路径）与命令文本。
 // args 保持原始字节：解析失败不影响分类，只是拿不到 target/command。

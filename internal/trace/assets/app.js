@@ -715,7 +715,12 @@
   function refreshTableStates() {
     for (const tr of dom.tbody.querySelectorAll('tr.row-record')) {
       const rec = recordByKey.get(tr.dataset.key);
-      if (!rec) continue;
+      if (!rec) {
+        // 占位行（该段没有模型记录）没有可匹配的内容：搜索时一并压暗。
+        if (state.query) tr.dataset.dim = 'true';
+        else delete tr.dataset.dim;
+        continue;
+      }
       if (state.selected === rec.key) tr.dataset.selected = 'true';
       else delete tr.dataset.selected;
       const t1 = rec.t1 ?? rec.t0;

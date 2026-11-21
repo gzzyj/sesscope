@@ -5,7 +5,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || date +%Y%
 GO ?= go
 SESSION ?=
 
-.PHONY: all build fmt vet test lint verify golden demo list export clean
+.PHONY: all build fmt vet test lint verify golden demo list export sources doctor smoke clean
 
 all: build
 
@@ -35,6 +35,18 @@ lint:
 ## golden: 用真实导出重写黄金用例（只在确认改动符合预期时用）
 golden:
 	$(GO) test ./internal/trace -run TestGoldenParity -update
+
+## sources: 列出本机所有来源与存储状态（附发现规则）
+sources: build
+	$(BINARY) sources --explain
+
+## doctor: 逐存储体检（含未注册记录类型）
+doctor: build
+	$(BINARY) doctor --drift
+
+## smoke: 真机四源端到端（sources → 每源导出 1 个会话 → 页面冒烟）
+smoke: build
+	bash tools/smoke-sources.sh
 
 ## list: 列出本机工作区与会话
 list: build

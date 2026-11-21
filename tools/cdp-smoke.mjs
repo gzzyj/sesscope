@@ -149,7 +149,8 @@ if (toolBar) {
 
 await evaluate(() => {
   const input = document.getElementById('search');
-  input.value = 'zzz-not-exist-zzz';
+  // 用随机串：固定串可能恰好出现在会话内容里（比如本工具源码被当成会话内容）。
+  input.value = 'no-match-' + Math.random().toString(36).slice(2, 10) + '-token';
   input.dispatchEvent(new Event('input', { bubbles: true }));
 });
 await sleep(200);
@@ -221,7 +222,7 @@ if (attribution.episodes > 0) {
     if (!target) return null;
     target.click();
     const panel = [...document.querySelectorAll('.tab-panel')].find((p) => !p.hidden);
-    return panel ? panel.textContent.slice(0, 160) : null;
+    return panel ? panel.textContent : null;
   });
   check('归因页签有证据与结论', /证据|结论|补偿动作/.test(card ?? ''), (card ?? '').replace(/\s+/g, ' ').slice(0, 90));
 }

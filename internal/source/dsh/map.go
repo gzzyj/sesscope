@@ -283,13 +283,14 @@ func (m *mapper) appendAssistantMessage(env envelope) {
 				Text:      &text,
 			})
 		case "tool-call":
+			args := toolsem.Unwrap(block.Arguments)
 			call := &session.ToolCall{
 				CallID:  session.Str(block.ID),
 				Name:    session.Str(block.Name),
-				Args:    block.Arguments,
+				Args:    args,
 				StartMs: session.I64(created),
 			}
-			call.Kind, call.Target, call.Command = toolsem.Classify(session.DSH, block.Name, block.Arguments)
+			call.Kind, call.Target, call.Command = toolsem.Classify(session.DSH, block.Name, args)
 			m.tools[block.ID] = toolRef{message: len(m.out.Messages), part: len(parts)}
 			parts = append(parts, session.Part{
 				ID:        data.Message.ID + "#" + itoa(index),
@@ -341,8 +342,9 @@ func (m *mapper) applyToolCall(env envelope) {
 			m.out.Unknown["tool/call:orphan"]++
 			return
 		}
-		call := &session.ToolCall{CallID: session.Str(data.CallID), Name: session.Str(data.Name), Args: data.Arguments, StartMs: session.I64(env.Time)}
-		call.Kind, call.Target, call.Command = toolsem.Classify(session.DSH, data.Name, data.Arguments)
+		args := toolsem.Unwrap(data.Arguments)
+		call := &session.ToolCall{CallID: session.Str(data.CallID), Name: session.Str(data.Name), Args: args, StartMs: session.I64(env.Time)}
+		call.Kind, call.Target, call.Command = toolsem.Classify(session.DSH, data.Name, args)
 		message := &m.out.Messages[index]
 		message.Parts = append(message.Parts, session.Part{
 			ID:        data.CallID,
@@ -365,8 +367,9 @@ func (m *mapper) applyToolCall(env envelope) {
 		return
 	}
 	if len(call.Args) == 0 && len(data.Arguments) > 0 {
-		call.Args = data.Arguments
-		call.Kind, call.Target, call.Command = toolsem.Classify(session.DSH, data.Name, data.Arguments)
+		args := toolsem.Unwrap(data.Arguments)
+		call.Args = args
+		call.Kind, call.Target, call.Command = toolsem.Classify(session.DSH, data.Name, args)
 	}
 	if call.StartMs == nil {
 		call.StartMs = session.I64(env.Time)

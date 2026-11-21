@@ -42,15 +42,29 @@ func RenderHTML(data *Data) ([]byte, error) {
 	payload = bytes.ReplaceAll(payload, []byte("\u2028"), []byte("\\u2028"))
 	payload = bytes.ReplaceAll(payload, []byte("\u2029"), []byte("\\u2029"))
 
-	out := bytes.Replace(shell, []byte(cssPlaceholder), css, 1)
-	out = bytes.Replace(out, []byte(dataPlaceholder), payload, 1)
-	out = bytes.Replace(out, []byte(jsPlaceholder), js, 1)
+	// 骨架必须各有一个占位符；数据区要在"插入之后不再被扫描"的前提下拼装，
+	// 否则会话内容里出现占位符原文（比如本工具的源码被当成会话内容）会被误判成重复占位符。
 	for _, placeholder := range []string{cssPlaceholder, dataPlaceholder, jsPlaceholder} {
-		if bytes.Contains(out, []byte(placeholder)) {
+		if bytes.Count(shell, []byte(placeholder)) != 1 {
+			return nil, fmt.Errorf("页面骨架里占位符 %s 必须恰好出现一次", placeholder)
+		}
+	}
+	out := bytes.Replace(shell, []byte(cssPlaceholder), css, 1)
+	before, after, found := bytes.Cut(out, []byte(dataPlaceholder))
+	if !found {
+		return nil, fmt.Errorf("页面骨架里缺少数据占位符 %s", dataPlaceholder)
+	}
+	after = bytes.Replace(after, []byte(jsPlaceholder), js, 1)
+	for _, placeholder := range []string{cssPlaceholder, jsPlaceholder} {
+		if bytes.Contains(before, []byte(placeholder)) || bytes.Contains(after, []byte(placeholder)) {
 			return nil, fmt.Errorf("页面骨架里有重复的占位符 %s", placeholder)
 		}
 	}
-	return out, nil
+	combined := make([]byte, 0, len(before)+len(payload)+len(after))
+	combined = append(combined, before...)
+	combined = append(combined, payload...)
+	combined = append(combined, after...)
+	return combined, nil
 }
 
 // EncodeDataJSON 输出归一化数据本身（-data 用）。

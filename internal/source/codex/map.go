@@ -311,6 +311,7 @@ func (m *mapper) applyToolCall(item responseItem, at int64) {
 	if len(args) == 0 {
 		args = item.Input
 	}
+	args = toolsem.Unwrap(args)
 	if len(args) > 0 && args[0] != '{' {
 		// custom_tool_call 的 input 是脚本文本：包成 JSON 字符串，保持字节可控。
 		args = marshalString(string(args))
