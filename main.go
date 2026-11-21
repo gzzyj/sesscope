@@ -193,7 +193,7 @@ func runRender(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if metaPath == "-" {
 		metaPath = "<stdin>"
 	}
-	data, err := trace.Normalize(&doc, trace.Options{ExportPath: metaPath, GeneratedAt: stamp})
+	data, err := trace.NormalizeExport(&doc, trace.Options{ExportPath: metaPath, GeneratedAt: stamp})
 	if err != nil {
 		fmt.Fprintf(stderr, "opencode-trace: %v\n", err)
 		return exitBadInput

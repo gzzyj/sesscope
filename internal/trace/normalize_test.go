@@ -84,7 +84,7 @@ func TestNormalizeSyntheticContinue(t *testing.T) {
 	doc := &Export{Messages: []Message{
 		userMessage("msg_u1", 1000, syntheticTextPart("prt_1", 1000, "Continue if you have next steps")),
 	}}
-	data, err := Normalize(doc, testOptions())
+	data, err := NormalizeExport(doc, testOptions())
 	if err != nil {
 		t.Fatalf("归一化失败：%v", err)
 	}
@@ -116,7 +116,7 @@ func TestNormalizeCompaction(t *testing.T) {
 		Data:          &PartData{Type: ptr("compaction"), Auto: ptr(true)},
 	}
 	doc := &Export{Messages: []Message{userMessage("msg_u1", 2000, compaction)}}
-	data, err := Normalize(doc, testOptions())
+	data, err := NormalizeExport(doc, testOptions())
 	if err != nil {
 		t.Fatalf("归一化失败：%v", err)
 	}
@@ -143,7 +143,7 @@ func TestNormalizeToolGapModelSpan(t *testing.T) {
 		userMessage("msg_u1", 100),
 		assistantMessage("msg_a1", 500, &completed, nil, stepStart, tool),
 	}}
-	data, err := Normalize(doc, testOptions())
+	data, err := NormalizeExport(doc, testOptions())
 	if err != nil {
 		t.Fatalf("归一化失败：%v", err)
 	}
@@ -178,7 +178,7 @@ func TestNormalizeAbortedStep(t *testing.T) {
 		userMessage("msg_u1", 1000),
 		assistantMessage("msg_a1", 1200, &completed, data, textPart("prt_1", "reasoning", 1200, 1300, 1900, "想一想")),
 	}}
-	result, err := Normalize(doc, testOptions())
+	result, err := NormalizeExport(doc, testOptions())
 	if err != nil {
 		t.Fatalf("归一化失败：%v", err)
 	}
@@ -204,7 +204,7 @@ func TestNormalizeUnfinishedStep(t *testing.T) {
 		userMessage("msg_u1", 100),
 		assistantMessage("msg_a1", 900, nil, nil, textPart("prt_1", "text", 950, 950, 980, "开始"), tool),
 	}}
-	result, err := Normalize(doc, testOptions())
+	result, err := NormalizeExport(doc, testOptions())
 	if err != nil {
 		t.Fatalf("归一化失败：%v", err)
 	}
@@ -241,7 +241,7 @@ func TestNormalizeAttachments(t *testing.T) {
 		userMessage("msg_u1", 1000, textPart("prt_1", "text", 1000, 1000, 1010,
 			"测试该接口 [dw-attachment:"+payload+"]")),
 	}}
-	result, err := Normalize(doc, testOptions())
+	result, err := NormalizeExport(doc, testOptions())
 	if err != nil {
 		t.Fatalf("归一化失败：%v", err)
 	}
@@ -263,7 +263,7 @@ func TestNormalizeNegativeTurn(t *testing.T) {
 		userMessage("msg_u1", 2000),
 		assistantMessage("msg_a1", 1400, &completed, nil, textPart("prt_1", "text", 1400, 1400, 1500, "ok")),
 	}}
-	result, err := Normalize(doc, testOptions())
+	result, err := NormalizeExport(doc, testOptions())
 	if err != nil {
 		t.Fatalf("归一化失败：%v", err)
 	}
@@ -283,7 +283,7 @@ func TestNormalizeNegativeTurn(t *testing.T) {
 }
 
 func TestNormalizeRejectsEmptyMessages(t *testing.T) {
-	if _, err := Normalize(&Export{}, testOptions()); err == nil {
+	if _, err := NormalizeExport(&Export{}, testOptions()); err == nil {
 		t.Fatal("没有 messages 时应当报错")
 	}
 }
@@ -302,7 +302,7 @@ func TestNormalizeModelAsJSONString(t *testing.T) {
 		Session:  &Session{Model: quoted},
 		Messages: []Message{userMessage("msg_u1", 1000, textPart("prt_1", "text", 1000, 1000, 1010, "hi"))},
 	}
-	result, err := Normalize(doc, testOptions())
+	result, err := NormalizeExport(doc, testOptions())
 	if err != nil {
 		t.Fatalf("归一化失败：%v", err)
 	}
@@ -316,7 +316,7 @@ func TestNormalizeEmptySlicesMarshalAsArrays(t *testing.T) {
 	doc := &Export{Messages: []Message{
 		userMessage("msg_u1", 1000, textPart("prt_1", "text", 1000, 1000, 1010, "hi")),
 	}}
-	result, err := Normalize(doc, testOptions())
+	result, err := NormalizeExport(doc, testOptions())
 	if err != nil {
 		t.Fatalf("归一化失败：%v", err)
 	}

@@ -38,7 +38,7 @@ func TestGoldenParity(t *testing.T) {
 	if err := DecodeExport(raw, &doc); err != nil {
 		t.Fatalf("解析黄金样例：%v", err)
 	}
-	data, err := Normalize(&doc, goldenOptions())
+	data, err := NormalizeExport(&doc, goldenOptions())
 	if err != nil {
 		t.Fatalf("归一化：%v", err)
 	}
@@ -139,7 +139,7 @@ func TestGoldenStats(t *testing.T) {
 	if err := DecodeExport(raw, &doc); err != nil {
 		t.Fatalf("解析黄金样例：%v", err)
 	}
-	data, err := Normalize(&doc, goldenOptions())
+	data, err := NormalizeExport(&doc, goldenOptions())
 	if err != nil {
 		t.Fatalf("归一化：%v", err)
 	}

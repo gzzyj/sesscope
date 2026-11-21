@@ -184,7 +184,7 @@ func loadForAnalyze(inPath, sessionID, dbPath string, pid int, chainGap int, std
 			fmt.Fprintf(stderr, "opencode-trace: %v\n", err)
 			return nil, "", exitBadInput
 		}
-		data, err := trace.Normalize(&document, trace.Options{ExportPath: describe(inPath), GeneratedAt: time.Now()})
+		data, err := trace.NormalizeExport(&document, trace.Options{ExportPath: describe(inPath), GeneratedAt: time.Now()})
 		if err != nil {
 			fmt.Fprintf(stderr, "opencode-trace: %v\n", err)
 			return nil, "", exitBadInput

@@ -566,7 +566,7 @@ func buildData(encoded []byte, exportPath string, stamp time.Time, chainGap int)
 	if err := trace.DecodeExport(encoded, &document); err != nil {
 		return nil, fmt.Errorf("导出的 JSON 自己解析不回来：%w", err)
 	}
-	data, err := trace.Normalize(&document, trace.Options{ExportPath: exportPath, GeneratedAt: stamp})
+	data, err := trace.NormalizeExport(&document, trace.Options{ExportPath: exportPath, GeneratedAt: stamp})
 	if err != nil {
 		return nil, err
 	}

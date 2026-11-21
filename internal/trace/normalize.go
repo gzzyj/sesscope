@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/zhouyuejie/opencode-trace/internal/session"
 )
 
 // Data 是页面直接消费的归一化结果；字段声明顺序就是 JSON 键顺序
@@ -205,30 +207,29 @@ type Options struct {
 	GeneratedAt time.Time
 }
 
-// Normalize 把 opencode 导出归一化成页面用的 Data。
-func Normalize(doc *Export, opts Options) (*Data, error) {
-	if doc == nil {
+// Normalize 把领域模型归一化成页面用的 Data。
+//
+// 这是唯一一份轮次/步骤/统计的派生算法：各来源适配器只产出 session.Session，
+// 来源之间的口径差异在适配器里消化，派生逻辑不分叉。
+func Normalize(s *session.Session, opts Options) (*Data, error) {
+	if s == nil {
 		return nil, fmt.Errorf("导出为空")
 	}
-	if len(doc.Messages) == 0 {
+	if len(s.Messages) == 0 {
 		return nil, fmt.Errorf("导出里没有 messages：%s", opts.ExportPath)
-	}
-	session := doc.Session
-	if session == nil {
-		session = &Session{}
 	}
 
 	warnings := make([]Warning, 0, 8)
 	turns := make([]Turn, 0, 8)
 	current := -1 // turns 的下标；用下标而不是指针，避免切片扩容后指针失效
-	for _, message := range doc.Messages {
+	for _, message := range s.Messages {
 		parts := sortedParts(message.Parts)
-		if message.Role == "user" {
+		if message.Role == session.RoleUser {
 			turns = append(turns, newTurn(len(turns)+1, message, parts, &warnings))
 			current = len(turns) - 1
 			continue
 		}
-		if message.Role != "assistant" {
+		if message.Role != session.RoleAssistant {
 			continue
 		}
 		if current < 0 {
@@ -236,7 +237,7 @@ func Normalize(doc *Export, opts Options) (*Data, error) {
 				Level:  "warn",
 				Code:   "orphan-assistant",
 				Title:  "有 assistant 消息没有所属轮次",
-				Detail: message.MessageID + " 出现在任何 user message 之前，已跳过。",
+				Detail: message.ID + " 出现在任何 user message 之前，已跳过。",
 			})
 			continue
 		}
@@ -269,19 +270,19 @@ func Normalize(doc *Export, opts Options) (*Data, error) {
 	}
 
 	warnings = append(warnings, structureWarnings(allSteps, allTools, busy, runningSteps, errorSteps, toolErrorIndexes, humanWaits)...)
-	warnings = append(warnings, reconciliationWarnings(doc, allTools, humanWaits, session)...)
+	warnings = append(warnings, reconciliationWarnings(s, allTools, humanWaits)...)
 
 	data := &Data{
 		Meta: Meta{
-			SessionID:   session.ID,
-			Title:       session.Title,
-			Slug:        session.Slug,
-			Directory:   session.Directory,
-			Agent:       session.Agent,
-			Version:     session.Version,
-			Model:       parseSessionModel(session.Model),
-			ExportedAt:  exportedAt(doc),
-			Source:      exportSource(doc),
+			SessionID:   s.Meta.ID,
+			Title:       s.Meta.Title,
+			Slug:        s.Meta.Slug,
+			Directory:   s.Meta.Directory,
+			Agent:       s.Meta.Agent,
+			Version:     s.Meta.Version,
+			Model:       traceModel(s.Meta.Model),
+			ExportedAt:  s.Meta.ExportedAt,
+			Source:      s.Meta.ExportSource,
 			FirstMs:     firstMs,
 			LastMs:      lastMs,
 			FirstIso:    isoPtr(firstMs),
@@ -507,10 +508,10 @@ func structureWarnings(steps []Step, tools []Tool, busy [][2]int64, runningSteps
 	return out
 }
 
-func reconciliationWarnings(doc *Export, tools []Tool, humanWaits []Tool, session *Session) []Warning {
+func reconciliationWarnings(s *session.Session, tools []Tool, humanWaits []Tool) []Warning {
 	out := make([]Warning, 0, 3)
 
-	if session.Cost == nil || !session.Cost.Set || session.Cost.V == 0 {
+	if s.Meta.Cost == nil || *s.Meta.Cost == 0 {
 		out = append(out, Warning{
 			Level: "info", Code: "no-cost", Title: "cost 全程为 0",
 			Detail: "DeepWorks 侧没有记账，本页不展示金额；token 用量来自每条 assistant message 的 data.tokens。",
@@ -523,17 +524,14 @@ func reconciliationWarnings(doc *Export, tools []Tool, humanWaits []Tool, sessio
 			stateToolMs += *tool.EndMs - *tool.StartMs
 		}
 	}
-	var globalToolMs *int64
-	if doc.GlobalStats != nil {
-		globalToolMs = doc.GlobalStats.TotalToolDurationMs
-	}
+	globalToolMs := s.Declared.TotalToolDurationMs
 	threshold := int64(math.Max(1000, float64(stateToolMs)*0.05))
 	if globalToolMs != nil && absInt64(*globalToolMs-stateToolMs) > threshold {
 		var partMs int64
-		for _, message := range doc.Messages {
+		for _, message := range s.Messages {
 			for _, part := range message.Parts {
-				if part.Type == "tool" && part.TimeCreatedMs != nil && part.TimeUpdatedMs != nil {
-					partMs += *part.TimeUpdatedMs - *part.TimeCreatedMs
+				if part.Kind == session.PartToolCall && part.CreatedMs != nil && part.UpdatedMs != nil {
+					partMs += *part.UpdatedMs - *part.CreatedMs
 				}
 			}
 		}
@@ -554,9 +552,9 @@ func reconciliationWarnings(doc *Export, tools []Tool, humanWaits []Tool, sessio
 		})
 	}
 
-	negative := make([]TurnTiming, 0, 2)
-	for _, timing := range doc.TurnTimings {
-		if timing.TurnDurationMs != nil && *timing.TurnDurationMs < 0 {
+	negative := make([]session.DeclaredTurnTiming, 0, 2)
+	for _, timing := range s.Declared.TurnTimings {
+		if timing.DurationMs != nil && *timing.DurationMs < 0 {
 			negative = append(negative, timing)
 		}
 	}
@@ -569,34 +567,34 @@ func reconciliationWarnings(doc *Export, tools []Tool, humanWaits []Tool, sessio
 			Level: "warn",
 			Code:  "export-derived-mismatch",
 			Title: fmt.Sprintf("导出里的 turn_timings 有 %d 条负耗时", len(negative)),
-			Detail: "例：" + example + " turn_duration_ms=" + formatJSFloat(*negative[0].TurnDurationMs) +
+			Detail: "例：" + example + " turn_duration_ms=" + formatJSFloat(*negative[0].DurationMs) +
 				"。本页完全不使用 turn_timings，所有时长按 part 时间戳重算。",
 		})
 	}
 	return out
 }
 
-func newTurn(index int, message Message, parts []Part, warnings *[]Warning) Turn {
-	var compacted *Part
-	realTexts := make([]Part, 0, len(parts))
-	allTexts := make([]Part, 0, len(parts))
-	files := make([]Part, 0, 2)
+func newTurn(index int, message session.Message, parts []session.Part, warnings *[]Warning) Turn {
+	var compacted *session.Part
+	realTexts := make([]session.Part, 0, len(parts))
+	allTexts := make([]session.Part, 0, len(parts))
+	files := make([]session.Part, 0, 2)
 	hasSynthetic := false
 	for position := range parts {
 		part := parts[position]
-		switch part.Type {
-		case "compaction":
+		switch part.Kind {
+		case session.PartCompaction:
 			if compacted == nil {
 				compacted = &parts[position]
 			}
-		case "text":
+		case session.PartText:
 			allTexts = append(allTexts, part)
 			if isSynthetic(part) {
 				hasSynthetic = true
 			} else {
 				realTexts = append(realTexts, part)
 			}
-		case "file":
+		case session.PartFile:
 			files = append(files, part)
 		}
 	}
@@ -623,9 +621,9 @@ func newTurn(index int, message Message, parts []Part, warnings *[]Warning) Turn
 	turn := Turn{
 		Index:     index,
 		Kind:      kind,
-		MessageID: message.MessageID,
-		StartMs:   message.TimeCreatedMs,
-		EndMs:     message.TimeCreatedMs,
+		MessageID: message.ID,
+		StartMs:   message.CreatedMs,
+		EndMs:     message.CreatedMs,
 		Input: TurnInput{
 			Text:          text,
 			Attachments:   names,
@@ -638,7 +636,7 @@ func newTurn(index int, message Message, parts []Part, warnings *[]Warning) Turn
 		turn.Input.SyntheticText = &synthetic
 	}
 	if compacted != nil {
-		auto := compacted.Data != nil && compacted.Data.Auto != nil && *compacted.Data.Auto
+		auto := compacted.Auto != nil && *compacted.Auto
 		turn.Compaction = &Compaction{DurationMs: compacted.DurationMs, Auto: auto}
 	}
 
@@ -663,76 +661,63 @@ func newTurn(index int, message Message, parts []Part, warnings *[]Warning) Turn
 	return turn
 }
 
-func normalizeStep(message Message, parts []Part, index, turnIndex int) Step {
+func normalizeStep(message session.Message, parts []session.Part, index, turnIndex int) Step {
 	step := Step{
 		Index:     index,
 		TurnIndex: turnIndex,
-		MessageID: message.MessageID,
+		MessageID: message.ID,
 		Role:      "assistant",
 		Reasoning: make([]Span, 0, 2),
 		Texts:     make([]Span, 0, 2),
 		Tools:     make([]Tool, 0, 2),
 		Timeline:  make([]TimelineItem, 0, len(parts)),
 	}
-	step.StartMs = message.TimeCreatedMs
-	if message.Data != nil {
-		if message.Data.Role != nil {
-			step.Role = *message.Data.Role
-		}
-		step.Finish = message.Data.Finish
-		if message.Data.Time != nil {
-			step.EndMs = message.Data.Time.Completed
-		}
+	step.StartMs = message.CreatedMs
+	if message.PayloadRole != nil {
+		step.Role = *message.PayloadRole
 	}
-	if message.ModelID != nil {
-		step.ModelID = message.ModelID
-	} else if message.Data != nil {
-		step.ModelID = message.Data.ModelID
-	}
-	if message.ModelProvider != nil {
-		step.Provider = message.ModelProvider
-	} else if message.Data != nil {
-		step.Provider = message.Data.ProviderID
+	step.Finish = message.Finish
+	step.EndMs = message.CompletedMs
+	if message.Model != nil {
+		step.ModelID = message.Model.ID
+		step.Provider = message.Model.Provider
 	}
 
 	for _, part := range parts {
-		step.StartMs = minInt64Ptr(step.StartMs, part.TimeCreatedMs)
-		switch part.Type {
-		case "reasoning", "text":
-			start := part.TimeCreatedMs
-			var end *int64
-			if part.Data != nil && part.Data.Time != nil {
-				if part.Data.Time.Start != nil {
-					start = part.Data.Time.Start
-				}
-				end = part.Data.Time.End
+		step.StartMs = minInt64Ptr(step.StartMs, part.CreatedMs)
+		switch part.Kind {
+		case session.PartReasoning, session.PartText:
+			start := part.CreatedMs
+			if part.StartMs != nil {
+				start = part.StartMs
 			}
+			end := part.EndMs
 			if end == nil {
-				end = part.TimeUpdatedMs
+				end = part.UpdatedMs
 			}
 			if start != nil && end != nil {
 				span := Span{StartMs: *start, EndMs: *end}
-				if part.Data != nil && part.Data.Text != nil {
-					span.Text = *part.Data.Text
+				if part.Text != nil {
+					span.Text = *part.Text
 				}
-				if part.Type == "reasoning" {
+				if part.Kind == session.PartReasoning {
 					step.Reasoning = append(step.Reasoning, span)
 				} else {
 					step.Texts = append(step.Texts, span)
 				}
 			}
-		case "tool":
+		case session.PartToolCall:
 			tool := normalizeTool(part)
 			tool.TurnIndex, tool.StepIndex = turnIndex, index
 			step.Tools = append(step.Tools, tool)
 			step.EndMs = maxInt64Ptr(step.EndMs, tool.EndMs)
 		}
-		if part.Type != "step-start" && part.Type != "step-finish" {
+		if part.Kind != session.PartStepStart && part.Kind != session.PartStepFinish {
 			step.Timeline = append(step.Timeline, TimelineItem{
 				Type:      part.Type,
 				PartID:    part.ID,
-				CreatedMs: part.TimeCreatedMs,
-				UpdatedMs: part.TimeUpdatedMs,
+				CreatedMs: part.CreatedMs,
+				UpdatedMs: part.UpdatedMs,
 			})
 		}
 	}
@@ -808,8 +793,8 @@ func applyModelSpan(step *Step) {
 	}
 }
 
-func applyStepStatus(step *Step, message Message) {
-	hasStepError := message.Data != nil && message.Data.Error != nil
+func applyStepStatus(step *Step, message session.Message) {
+	hasStepError := message.Error != nil
 	hasToolError := false
 	for _, tool := range step.Tools {
 		if tool.Status == "error" {
@@ -821,24 +806,22 @@ func applyStepStatus(step *Step, message Message) {
 	case hasStepError:
 		step.Status = "error"
 		name, text := "Error", ""
-		stepError := message.Data.Error
+		stepError := message.Error
 		if stepError.Name != nil {
 			name = *stepError.Name
 		}
-		if stepError.Data != nil && stepError.Data.Message != nil {
-			text = *stepError.Data.Message
+		if stepError.Detail != nil {
+			text = *stepError.Detail
 		} else if stepError.Message != nil {
 			text = *stepError.Message
 		}
 		step.Error = &StepError{Name: name, Message: text}
-		if stepError.Data != nil {
-			step.Error.StatusCode = stepError.Data.StatusCode
-			step.Error.Retryable = stepError.Data.Retryable
-		}
+		step.Error.StatusCode = stepError.StatusCode
+		step.Error.Retryable = stepError.Retryable
 	case hasToolError:
 		step.Status = "error"
 	default:
-		completed := message.Data != nil && message.Data.Time != nil && message.Data.Time.Completed != nil
+		completed := message.CompletedMs != nil
 		if completed {
 			step.Status = "completed"
 		} else {
@@ -847,48 +830,43 @@ func applyStepStatus(step *Step, message Message) {
 	}
 }
 
-func stepTokens(message Message) *StepTokens {
-	if message.Data == nil || message.Data.Tokens == nil {
+func stepTokens(message session.Message) *StepTokens {
+	if message.Tokens == nil {
 		return nil
 	}
-	tokens := message.Data.Tokens
+	tokens := message.Tokens
 	out := &StepTokens{
 		Total: tokens.Total, Input: tokens.Input, Output: tokens.Output, Reasoning: tokens.Reasoning,
-	}
-	if tokens.Cache != nil {
-		out.CacheRead = tokens.Cache.Read
-		out.CacheWrite = tokens.Cache.Write
+		CacheRead: tokens.CacheRead, CacheWrite: tokens.CacheWrite,
 	}
 	return out
 }
 
-func normalizeTool(part Part) Tool {
-	tool := Tool{PartID: part.ID, Name: "tool", Status: "unknown", StartMs: part.TimeCreatedMs}
-	if part.Data != nil {
-		if part.Data.CallID != nil {
-			tool.CallID = *part.Data.CallID
+func normalizeTool(part session.Part) Tool {
+	tool := Tool{PartID: part.ID, Name: "tool", Status: "unknown", StartMs: part.CreatedMs}
+	if call := part.Tool; call != nil {
+		if call.CallID != nil {
+			tool.CallID = *call.CallID
 		}
-		if part.Data.Tool != nil {
-			tool.Name = *part.Data.Tool
+		if call.Name != nil {
+			tool.Name = *call.Name
 		}
-		if state := part.Data.State; state != nil {
-			if state.Status != "" {
-				tool.Status = state.Status
-			}
-			if state.Time != nil {
-				if state.Time.Start != nil {
-					tool.StartMs = state.Time.Start
-				}
-				tool.EndMs = state.Time.End
-			}
-			tool.ArgsText = stringifyJSON(state.Input)
-			tool.OutputText = stringifyJSON(state.Output)
-			if len(state.Error) > 0 && strings.TrimSpace(string(state.Error)) != "null" {
-				text := stringifyJSON(state.Error)
-				tool.ErrorText = &text
-			}
-			tool.Title = state.Title
+		if call.Status != nil {
+			tool.Status = *call.Status
 		}
+		if call.StartMs != nil {
+			tool.StartMs = call.StartMs
+		}
+		if call.EndMs != nil {
+			tool.EndMs = call.EndMs
+		}
+		tool.ArgsText = stringifyJSON(call.Args)
+		tool.OutputText = stringifyJSON(call.Output)
+		if len(call.Error) > 0 && strings.TrimSpace(string(call.Error)) != "null" {
+			text := stringifyJSON(call.Error)
+			tool.ErrorText = &text
+		}
+		tool.Title = call.Title
 	}
 	if tool.CallID == "" {
 		tool.CallID = part.ID
@@ -1006,43 +984,43 @@ func renderLabel(value any) string {
 	}
 }
 
-func fileLabel(part Part) string {
-	if part.Data != nil {
-		if part.Data.Filename != nil {
-			return *part.Data.Filename
+func fileLabel(part session.Part) string {
+	if part.File != nil {
+		if part.File.Name != nil {
+			return *part.File.Name
 		}
-		if part.Data.URL != nil {
-			return *part.Data.URL
+		if part.File.URL != nil {
+			return *part.File.URL
 		}
 	}
 	return "文件"
 }
 
-func joinText(parts []Part) string {
+func joinText(parts []session.Part) string {
 	texts := make([]string, 0, len(parts))
 	for _, part := range parts {
-		if part.Data == nil || part.Data.Text == nil || *part.Data.Text == "" {
+		if part.Text == nil || *part.Text == "" {
 			continue
 		}
-		texts = append(texts, *part.Data.Text)
+		texts = append(texts, *part.Text)
 	}
 	return strings.Join(texts, "\n")
 }
 
-func isSynthetic(part Part) bool {
-	return part.Data != nil && part.Data.Synthetic != nil && *part.Data.Synthetic
+func isSynthetic(part session.Part) bool {
+	return part.Synthetic != nil && *part.Synthetic
 }
 
-func sortedParts(parts []Part) []Part {
-	sorted := make([]Part, len(parts))
+func sortedParts(parts []session.Part) []session.Part {
+	sorted := make([]session.Part, len(parts))
 	copy(sorted, parts)
 	sort.SliceStable(sorted, func(i, j int) bool { return byCreated(sorted[i], sorted[j]) < 0 })
 	return sorted
 }
 
 // byCreated 与 Node 版一致：先按 time_created_ms，再按 id 字符串。
-func byCreated(a, b Part) int {
-	left, right := derefInt64(a.TimeCreatedMs), derefInt64(b.TimeCreatedMs)
+func byCreated(a, b session.Part) int {
+	left, right := derefInt64(a.CreatedMs), derefInt64(b.CreatedMs)
 	if left != right {
 		if left < right {
 			return -1
@@ -1052,50 +1030,12 @@ func byCreated(a, b Part) int {
 	return strings.Compare(a.ID, b.ID)
 }
 
-func parseSessionModel(raw json.RawMessage) *ModelRef {
-	trimmed := strings.TrimSpace(string(raw))
-	if trimmed == "" || trimmed == "null" {
+// traceModel 把领域模型的模型引用转成页面契约里的形状。
+func traceModel(model *session.ModelRef) *ModelRef {
+	if model == nil {
 		return nil
 	}
-	type rawModel struct {
-		ID         *string `json:"id"`
-		ModelID    *string `json:"modelID"`
-		ProviderID *string `json:"providerID"`
-		Variant    *string `json:"variant"`
-	}
-	parse := func(data []byte) *ModelRef {
-		var model rawModel
-		if err := json.Unmarshal(data, &model); err != nil {
-			return nil
-		}
-		out := &ModelRef{ID: model.ID, Provider: model.ProviderID, Variant: model.Variant}
-		if out.ID == nil {
-			out.ID = model.ModelID
-		}
-		return out
-	}
-	if strings.HasPrefix(trimmed, "\"") {
-		var asString string
-		if err := json.Unmarshal(raw, &asString); err != nil {
-			return nil
-		}
-		return parse([]byte(asString))
-	}
-	return parse(raw)
-}
-
-func exportedAt(doc *Export) *string {
-	if doc.ExportInfo == nil {
-		return nil
-	}
-	return doc.ExportInfo.ExportedAt
-}
-
-func exportSource(doc *Export) *string {
-	if doc.ExportInfo == nil {
-		return nil
-	}
-	return doc.ExportInfo.Source
+	return &ModelRef{ID: model.ID, Provider: model.Provider, Variant: model.Variant}
 }
 
 // ---------- 常量与小工具 ----------
