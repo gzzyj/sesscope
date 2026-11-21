@@ -7,6 +7,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/zhouyuejie/opencode-trace/internal/cli"
+)
+
+// 退出码常量：与 cli 包保持一致（测试历史上直接叫 exitOK/exitBadInput）。
+const (
+	exitOK       = cli.ExitOK
+	exitBadInput = cli.ExitBadInput
 )
 
 // sampleExport 造一份最小但完整的 opencode 导出（一轮：用户输入 + 一次模型调用 + 一次工具）。
@@ -190,7 +198,7 @@ func TestRunRejectsUnknownArgument(t *testing.T) {
 	if code != exitBadInput {
 		t.Errorf("退出码 = %d，期望 %d", code, exitBadInput)
 	}
-	if !strings.Contains(stderr, "位置参数") {
+	if !strings.Contains(stderr, "extra-positional") {
 		t.Errorf("stderr = %s", stderr)
 	}
 }

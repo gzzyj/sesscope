@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/zhouyuejie/opencode-trace/internal/session"
 )
@@ -124,6 +125,12 @@ type ProcessLister interface {
 // Diagnoser 是可选能力：给出该存储的体检结果。
 type Diagnoser interface {
 	Doctor(ctx context.Context, store Store) []Check
+}
+
+// LegacyExporter 是可选能力：仍能输出旧格式导出（opencode 的 session-export.json）。
+// 只有历史包袱重的来源才实现它；其它来源用规范格式。
+type LegacyExporter interface {
+	LegacyDocument(ctx context.Context, store Store, id string, generatedAt time.Time) ([]byte, error)
 }
 
 // WorkspaceAugmenter 是可选能力：把外部应用态（如 DeepWorks）叠加到工作区清单上。

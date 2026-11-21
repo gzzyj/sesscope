@@ -252,6 +252,26 @@ func (a *Adapter) Open(ctx context.Context, store source.Store, ref session.Ref,
 	return mapDetail(detail, store, o), nil
 }
 
+// LegacyDocument 实现 source.LegacyExporter：输出旧口径的 session-export.json。
+func (a *Adapter) LegacyDocument(ctx context.Context, store source.Store, id string, generatedAt time.Time) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if !store.Readable {
+		return nil, &source.UnsupportedError{Source: session.Opencode, Store: store.Path, Reason: store.Detail}
+	}
+	database, err := Open(store.Path)
+	if err != nil {
+		return nil, err
+	}
+	defer database.Close()
+	document, err := database.ExportDocument(id, generatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return EncodeDocument(document)
+}
+
 // Workspaces 实现 source.WorkspaceLister：把 project 当作原生工作区。
 // workspace 表在本机一直为空，因此这里只读 project，并如实标注 Origin=native。
 func (a *Adapter) Workspaces(ctx context.Context, store source.Store) ([]session.Workspace, error) {
