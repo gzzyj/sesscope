@@ -6,8 +6,8 @@
 一个静态二进制：UI 用 `go:embed` 编进去，SQLite 用纯 Go 实现（不需要 cgo），
 zstd 用 `klauspost/compress`（纯 Go）。
 
-> 原名 `opencode-trace`（绑定单一产品）；现在覆盖四个来源，改名 `atrace`。
-> 模块路径 `github.com/gzzyj/atrace`，旧命令名在 `make build` 后留一个软链（弃用）。
+> 命名的取舍：不叫 `*-opencode-*` 之类绑定单一产品的名字——它只是四个来源之一。
+> 模块与命令名统一为 `atrace`，与导出格式 `atrace/session.v1`、`--json` 的 `atrace.*.v1` 一致。
 
 ## 快速开始
 

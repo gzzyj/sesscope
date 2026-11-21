@@ -12,8 +12,6 @@ all: build
 ## build: 编译单文件二进制（内嵌 UI 资源）
 build:
 	$(GO) build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o $(BINARY) .
-	@# 旧命令名兼容：opencode-trace -> atrace（弃用，只为不让既有脚本立刻挂掉）
-	@ln -sf $(notdir $(BINARY)) out/opencode-trace
 
 ## fmt: 格式检查（有未格式化文件就失败）
 fmt:

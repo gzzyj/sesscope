@@ -156,8 +156,7 @@
     collapsed: new Set(),
     theme: (() => {
       try {
-        // 兼容旧版本写入的 opencode-trace-theme：改名不该把用户的主题选择弄丢。
-        const saved = window.localStorage.getItem('atrace-theme') || window.localStorage.getItem('opencode-trace-theme');
+        const saved = window.localStorage.getItem('atrace-theme');
         if (saved === 'light' || saved === 'dark') return saved;
       } catch { /* file:// 下 localStorage 可能不可用 */ }
       return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
