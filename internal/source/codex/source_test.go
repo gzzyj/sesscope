@@ -79,6 +79,88 @@ func fixture() []map[string]any {
 	}
 }
 
+// TestRolloutModelSpans：codex 的 item_completed 带真实起止，必须落到 ModelSpans 上。
+// 思考常常是加密的（没有 part），起止仍然要保留，否则页面上模型泳道是空的。
+func TestRolloutModelSpans(t *testing.T) {
+	base := int64(1790000000000)
+	stamp := "2026-09-22T10:00:00.000Z"
+	records := []map[string]any{
+		{"timestamp": stamp, "type": "session_meta", "payload": map[string]any{
+			"session_id": "01a0c89f-3c06-73c3-aae8-e6de46100531", "cwd": "/work/demo", "timestamp": stamp,
+		}},
+		{"timestamp": stamp, "type": "turn_context", "payload": map[string]any{"turn_id": "turn-1"}},
+		{"timestamp": stamp, "type": "event_msg", "payload": map[string]any{"type": "task_started", "turn_id": "turn-1"}},
+		{"timestamp": stamp, "type": "event_msg", "payload": map[string]any{
+			"type": "item_completed", "turn_id": "turn-1", "started_at_ms": base, "completed_at_ms": base,
+			"item": map[string]any{"type": "UserMessage", "id": "u1", "content": []any{map[string]any{"type": "text", "text": "跑一下"}}},
+		}},
+		{"timestamp": stamp, "type": "response_item", "payload": map[string]any{
+			"type": "function_call", "id": "fc1", "name": "exec_command", "arguments": `{"cmd":"ls"}`, "call_id": "call_1",
+		}},
+		{"timestamp": stamp, "type": "response_item", "payload": map[string]any{
+			"type": "function_call_output", "id": "fco1", "call_id": "call_1", "output": "a.txt",
+		}},
+		// 顺序与真实 rollout 一致：先 item_completed（带起止），再 response_item。
+		{"timestamp": stamp, "type": "event_msg", "payload": map[string]any{
+			"type": "item_completed", "turn_id": "turn-1", "started_at_ms": base + 100, "completed_at_ms": base + 400,
+			"item": map[string]any{"type": "Reasoning", "id": "r1"},
+		}},
+		{"timestamp": stamp, "type": "response_item", "payload": map[string]any{
+			"type": "reasoning", "id": "r1", "summary": []any{}, "encrypted_content": "gAAAA",
+		}},
+		{"timestamp": stamp, "type": "event_msg", "payload": map[string]any{
+			"type": "item_completed", "turn_id": "turn-1", "started_at_ms": base + 500, "completed_at_ms": base + 900,
+			"item": map[string]any{"type": "AgentMessage", "id": "a2", "content": []any{map[string]any{"type": "output_text", "text": "好了"}}},
+		}},
+		{"timestamp": stamp, "type": "response_item", "payload": map[string]any{
+			"type": "message", "id": "a2", "role": "assistant",
+			"content": []any{map[string]any{"type": "output_text", "text": "好了"}},
+		}},
+	}
+	store := writeRollout(t, records)
+	summaries, err := New().Sessions(context.Background(), store, source.Query{})
+	if err != nil {
+		t.Fatalf("列会话：%v", err)
+	}
+	opened, err := New().Open(context.Background(), store, summaries[0].Ref, source.OpenOptions{})
+	if err != nil {
+		t.Fatalf("取会话：%v", err)
+	}
+	var toolStep, textStep *session.Message
+	for index := range opened.Messages {
+		message := &opened.Messages[index]
+		if message.Role != session.RoleAssistant {
+			continue
+		}
+		for _, part := range message.Parts {
+			if part.Kind == session.PartToolCall {
+				toolStep = message
+			}
+			if part.Kind == session.PartText {
+				textStep = message
+			}
+		}
+	}
+	if toolStep == nil || textStep == nil {
+		t.Fatalf("步骤划分不对：tool=%v text=%v", toolStep != nil, textStep != nil)
+	}
+	if len(toolStep.ModelSpans) != 1 || toolStep.ModelSpans[0] != (session.ModelSpan{StartMs: base + 100, EndMs: base + 400}) {
+		t.Errorf("工具步骤的模型区间 = %+v", toolStep.ModelSpans)
+	}
+	if len(textStep.ModelSpans) != 1 || textStep.ModelSpans[0] != (session.ModelSpan{StartMs: base + 500, EndMs: base + 900}) {
+		t.Errorf("文本步骤的模型区间 = %+v", textStep.ModelSpans)
+	}
+	if textStep.CreatedMs == nil || *textStep.CreatedMs != base+500 {
+		t.Errorf("文本步骤起点 = %v，期望 %d", textStep.CreatedMs, base+500)
+	}
+	if textStep.CompletedMs == nil || *textStep.CompletedMs != base+900 {
+		t.Errorf("文本步骤终点 = %v，期望 %d", textStep.CompletedMs, base+900)
+	}
+	if part := textStep.Parts[0]; part.StartMs == nil || *part.StartMs != base+500 || part.EndMs == nil || *part.EndMs != base+900 {
+		t.Errorf("文本 part 区间 = %v..%v", part.StartMs, part.EndMs)
+	}
+}
+
 func TestRolloutMapping(t *testing.T) {
 	store := writeRollout(t, fixture())
 	if !store.Readable {

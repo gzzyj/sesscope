@@ -72,9 +72,14 @@ func kindOf(name string) session.ToolKind {
 func extract(args []byte, kind session.ToolKind) (target string, command string) {
 	object := decode(args)
 	if object == nil {
-		text := strings.TrimSpace(string(args))
+		text := asText(args)
 		if kind == session.ToolShell && text != "" && !strings.HasPrefix(text, "{") {
 			return firstPath(text), text
+		}
+		if kind == session.ToolEdit || kind == session.ToolWrite {
+			if target := patchTarget(text); target != "" {
+				return target, ""
+			}
 		}
 		return "", ""
 	}
@@ -87,7 +92,8 @@ func extract(args []byte, kind session.ToolKind) (target string, command string)
 		}
 		return target, command
 	case session.ToolRead, session.ToolWrite, session.ToolEdit, session.ToolList:
-		return firstString(object, "filePath", "file_path", "path", "file", "filename", "directory", "dir"), ""
+		// glob/list 类工具常用 pattern/glob 而不是 path（例如 glob("**/*.go")）。
+		return firstString(object, "filePath", "file_path", "path", "file", "filename", "directory", "dir", "pattern", "glob", "include", "query"), ""
 	case session.ToolSearch:
 		target = firstString(object, "path", "directory", "dir")
 		if target == "" {
@@ -101,6 +107,35 @@ func extract(args []byte, kind session.ToolKind) (target string, command string)
 	default:
 		return firstString(object, "filePath", "file_path", "path", "file", "url"), ""
 	}
+}
+
+// asText 把参数还原成纯文本：既支持裸文本（patch/脚本），也支持被 JSON 引号包住的文本。
+func asText(args []byte) string {
+	trimmed := strings.TrimSpace(string(args))
+	if trimmed == "" {
+		return ""
+	}
+	if strings.HasPrefix(trimmed, string(rune(34))) {
+		var text string
+		if err := json.Unmarshal([]byte(trimmed), &text); err == nil {
+			return text
+		}
+	}
+	return trimmed
+}
+
+// patchTarget 从 codex apply_patch 的补丁文本里取第一个目标路径。
+// 形如 "*** Update File: pkg/x.go" / "*** Add File: ..." / "*** Move to: ..."。
+func patchTarget(text string) string {
+	for _, line := range strings.Split(text, string(rune(10))) {
+		trimmed := strings.TrimSpace(line)
+		for _, prefix := range []string{"*** Update File:", "*** Add File:", "*** Delete File:", "*** Move to:"} {
+			if strings.HasPrefix(trimmed, prefix) {
+				return strings.TrimSpace(strings.TrimPrefix(trimmed, prefix))
+			}
+		}
+	}
+	return ""
 }
 
 func decode(args []byte) map[string]any {

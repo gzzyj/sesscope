@@ -89,8 +89,20 @@
       label: turn.kind === 'compaction' ? '上下文压缩' : turn.kind === 'continue' ? '自动续跑' : '用户输入',
     });
     for (const step of turn.steps) {
-      if (step.modelStartMs !== null && step.modelEndMs !== null) {
-        const think = step.reasoningMs + step.textMs > 0 ? step.reasoningMs / (step.reasoningMs + step.textMs) : 0;
+      const think = step.reasoningMs + step.textMs > 0 ? step.reasoningMs / (step.reasoningMs + step.textMs) : 0;
+      const spans = Array.isArray(step.modelSpans) && step.modelSpans.length > 0 ? step.modelSpans : null;
+      if (spans) {
+        // 源显式记录的分段：段与段之间夹着工具调用，一段画一条，不能并成一个长条。
+        for (const span of spans) {
+          pushRecord({
+            key: 't' + turn.index + 's' + step.index,
+            kind: 'model', lane: 1, turn, step, tool: null,
+            t0: span.startMs, t1: span.endMs, think,
+            status: step.status,
+            label: '模型调用',
+          });
+        }
+      } else if (step.modelStartMs !== null && step.modelEndMs !== null) {
         pushRecord({
           key: 't' + turn.index + 's' + step.index,
           kind: 'model', lane: 1, turn, step, tool: null,
@@ -135,6 +147,11 @@
     return [...byCode.values()].sort((a, b) => b.windowMs - a.windowMs || b.count - a.count);
   })();
   const totalEpisodeMs = EPISODES.reduce((sum, episode) => sum + episode.windowMs, 0);
+
+  // modelGapMs：模型耗时里"没有可读内容"的部分（思考被加密 / 只记起止不记文本）。
+  // 有的来源（codex）会记录整段模型活动，但只给部分思考留文本，两者差额要单独说明，
+  // 否则"模型 12 s"和"思考 2 s + 生成 2 s"看起来对不上。
+  const modelGapMs = (step) => Math.max(0, (step.modelMs ?? 0) - (step.reasoningMs ?? 0) - (step.textMs ?? 0));
 
   const recDur = (rec) => rec.kind === 'tool'
     ? (rec.tool.durationMs ?? 0)
@@ -671,7 +688,11 @@
         const bits = noTextParts
           ? ['无 reasoning/text part']
           : ['思考 ' + fmtMs(step.reasoningMs), '生成 ' + fmtMs(step.textMs)];
-        if (step.modelMs !== null) bits.push('模型 ' + fmtMs(step.modelMs) + (step.modelSpanSource === 'tool-gap' ? '（step 起点→首个工具）' : ''));
+        if (step.modelMs !== null) {
+          const gap = modelGapMs(step);
+          const note = step.modelSpanSource === 'tool-gap' ? '（step 起点→首个工具）' : gap > 0 ? '（含无文本 ' + fmtMs(gap) + '）' : '';
+          bits.push('模型 ' + fmtMs(step.modelMs) + note);
+        }
         if (step.tools.length > 0) bits.push('工具 ' + step.tools.length + ' 个 · ' + fmtMs(step.tools.reduce((a, t) => a + (t.durationMs ?? 0), 0)));
         bits.push('步骤 ' + fmtMs(step.stepMs));
         if (step.status === 'error') bits.push('已中止：' + (step.error?.name ?? ''));
@@ -882,9 +903,12 @@
 
       const compo = el('section', 'insp-section');
       compo.appendChild(el('h3', 'insp-section-title', '时间构成（活跃时段内）'));
+      const modelGap = (DATA.turns || []).reduce(
+        (sum, turn) => sum + (turn.steps || []).reduce((inner, step) => inner + modelGapMs(step), 0), 0);
       const parts = [
         { kind: 'think', label: '模型 · 思考', value: stats.reasoningMs },
         { kind: 'decode', label: '模型 · 生成', value: stats.textMs },
+        { kind: 'think-muted', label: '模型 · 思考（无文本）', value: modelGap },
         { kind: 'tool', label: '工具执行', value: stats.toolMs },
         { kind: 'wait', label: '等待人工（question）', value: stats.waitHumanMs },
         { kind: 'compaction', label: '上下文压缩', value: stats.compactionMs },
@@ -903,7 +927,7 @@
       for (const part of parts) {
         const row = el('div', 'legend-row');
         const dot = el('span', 'legend-dot');
-        dot.style.background = 'var(--' + (part.kind === 'think' ? 'assistant-think' : part.kind === 'decode' ? 'assistant-decode' : part.kind === 'tool' ? 'state-warn-label' : part.kind === 'wait' ? 'wait-color' : 'label-tertiary') + ')';
+        dot.style.background = 'var(--' + (part.kind === 'think' ? 'assistant-think' : part.kind === 'think-muted' ? 'label-secondary' : part.kind === 'decode' ? 'assistant-decode' : part.kind === 'tool' ? 'state-warn-label' : part.kind === 'wait' ? 'wait-color' : 'label-tertiary') + ')';
         row.appendChild(dot);
         row.appendChild(el('span', '', part.label));
         row.appendChild(el('span', 'legend-value', fmtMs(part.value)));
@@ -1104,7 +1128,9 @@
         put('模型', (rec.step.provider ?? meta.model?.provider ?? '') + '/' + (rec.step.modelId ?? meta.model?.id ?? ''));
         put('开始', fmtClock(rec.t0));
         put('结束', fmtClock(rec.t1));
-        put('模型耗时', fmtMs(rec.step.modelMs) + '（思考 ' + fmtMs(rec.step.reasoningMs) + ' + 生成 ' + fmtMs(rec.step.textMs) + '）', 'num');
+        const gap = modelGapMs(rec.step);
+        put('模型耗时', fmtMs(rec.step.modelMs) + '（思考 ' + fmtMs(rec.step.reasoningMs) + ' + 生成 ' + fmtMs(rec.step.textMs) +
+          (gap > 0 ? ' + 无文本 ' + fmtMs(gap) : '') + '）', 'num');
         put('步骤总时长', fmtMs(rec.step.stepMs) + '（含工具）', 'num');
         if (rec.step.tokens) {
           put('tokens', '总 ' + fmtNum(rec.step.tokens.total) + ' · 输入 ' + fmtNum(rec.step.tokens.input) + '（缓存 ' + fmtNum(rec.step.tokens.cacheRead) + '）', 'num');
@@ -1304,7 +1330,10 @@
     const lines = ['<b>' + esc(rec.label) + '</b>'];
     lines.push('第 ' + rec.turn.index + ' 轮' + (rec.step ? ' · 第 ' + rec.step.index + ' 步' : ''));
     if (rec.kind === 'tool') lines.push(esc(toolSummary(rec.tool)));
-    if (rec.kind === 'model') lines.push('思考 ' + fmtMs(rec.step.reasoningMs) + ' · 生成 ' + fmtMs(rec.step.textMs));
+    if (rec.kind === 'model') {
+      const gap = modelGapMs(rec.step);
+      lines.push('思考 ' + fmtMs(rec.step.reasoningMs) + ' · 生成 ' + fmtMs(rec.step.textMs) + (gap > 0 ? ' · 无文本 ' + fmtMs(gap) : ''));
+    }
     if (rec.t1 !== null && rec.t1 > rec.t0) {
       lines.push(fmtClock(rec.t0) + ' → ' + fmtClock(rec.t1));
       lines.push('总计 ' + fmtMs(rec.t1 - rec.t0));

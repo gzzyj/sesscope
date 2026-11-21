@@ -795,6 +795,7 @@ dl.overview dd.muted { color: var(--label-caption); }
 .compo { display: flex; height: 8px; overflow: hidden; border-radius: 4px; background: var(--bg-layer-3); }
 .compo-seg { height: 100%; min-width: 1px; }
 .compo-seg[data-kind='think'] { background: var(--assistant-think); }
+.compo-seg[data-kind='think-muted'] { background: color-mix(in srgb, var(--assistant-think) 34%, transparent); }
 .compo-seg[data-kind='decode'] { background: var(--assistant-decode); }
 .compo-seg[data-kind='tool'] { background: var(--state-warn-label); }
 .compo-seg[data-kind='wait'] { background: var(--wait-color); }

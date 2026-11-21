@@ -183,6 +183,16 @@ type TurnHint struct {
 	TurnID string `json:"turn_id,omitempty"`
 }
 
+// ModelSpan 是源显式记录的一段模型活动区间（起止都来自源，不是派生值）。
+//
+// 与 Part 的区别：Part 承载内容（文本 / 思考 / 工具），而模型活动可能没有可读内容
+// （思考被加密、只剩摘要），但起止时间照样存在。派生层只用它画模型泳道，
+// 不拿它冒充思考文本。
+type ModelSpan struct {
+	StartMs int64 `json:"start_ms"`
+	EndMs   int64 `json:"end_ms"`
+}
+
 // Message 是一条消息（用户输入 / 模型输出 / 工具结果 / 系统注入）。
 type Message struct {
 	ID          string    `json:"id"`
@@ -197,7 +207,11 @@ type Message struct {
 	Error       *Error    `json:"error,omitempty"`
 	Tokens      *Tokens   `json:"tokens,omitempty"`
 	Synthetic   bool      `json:"synthetic,omitempty"`
-	Parts       []Part    `json:"parts"`
+	// ModelSpans 是源显式记录的模型活动区间（codex: item_completed 里 Reasoning /
+	// AgentMessage 的 started_at_ms..completed_at_ms）。没有它时，派生层退回
+	// "由 reasoning/text part 的时间并集推导"。
+	ModelSpans []ModelSpan `json:"model_spans,omitempty"`
+	Parts      []Part      `json:"parts"`
 }
 
 // DeclaredTurnTiming 是源自己声明的轮次耗时，只用于对账，不参与计算。

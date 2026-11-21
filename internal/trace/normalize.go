@@ -121,18 +121,21 @@ type Compaction struct {
 
 // Step 是一次模型调用（一个 assistant message 的一个 step）。
 type Step struct {
-	Index           int            `json:"index"`
-	TurnIndex       int            `json:"turnIndex"`
-	MessageID       string         `json:"messageId"`
-	Role            string         `json:"role"`
-	ModelID         *string        `json:"modelId"`
-	Provider        *string        `json:"provider"`
-	StartMs         *int64         `json:"startMs"`
-	EndMs           *int64         `json:"endMs"`
-	StepMs          *int64         `json:"stepMs"`
-	ModelStartMs    *int64         `json:"modelStartMs"`
-	ModelEndMs      *int64         `json:"modelEndMs"`
-	ModelMs         *int64         `json:"modelMs"`
+	Index        int     `json:"index"`
+	TurnIndex    int     `json:"turnIndex"`
+	MessageID    string  `json:"messageId"`
+	Role         string  `json:"role"`
+	ModelID      *string `json:"modelId"`
+	Provider     *string `json:"provider"`
+	StartMs      *int64  `json:"startMs"`
+	EndMs        *int64  `json:"endMs"`
+	StepMs       *int64  `json:"stepMs"`
+	ModelStartMs *int64  `json:"modelStartMs"`
+	ModelEndMs   *int64  `json:"modelEndMs"`
+	ModelMs      *int64  `json:"modelMs"`
+	// ModelSpans 是源显式记录的模型活动分段（可多段，段与段之间夹着工具调用）。
+	// 页面按段画模型条；ModelStartMs/ModelEndMs 只是这些段的外包络，供兼容与提示。
+	ModelSpans      []Span         `json:"modelSpans,omitempty"`
 	ModelSpanSource string         `json:"modelSpanSource"`
 	ReasoningMs     int64          `json:"reasoningMs"`
 	TextMs          int64          `json:"textMs"`
@@ -355,6 +358,14 @@ func finalizeTurnEnds(turns []Turn, warnings *[]Warning) {
 func activityIntervals(steps []Step, tools []Tool, turns []Turn) [][2]int64 {
 	intervals := make([][2]int64, 0, len(steps)+len(tools))
 	for _, step := range steps {
+		if len(step.ModelSpans) > 0 {
+			for _, span := range step.ModelSpans {
+				if span.EndMs > span.StartMs {
+					intervals = append(intervals, [2]int64{span.StartMs, span.EndMs})
+				}
+			}
+			continue
+		}
 		if step.ModelStartMs != nil && step.ModelEndMs != nil && *step.ModelEndMs > *step.ModelStartMs {
 			intervals = append(intervals, [2]int64{*step.ModelStartMs, *step.ModelEndMs})
 		}
@@ -725,7 +736,7 @@ func normalizeStep(message session.Message, parts []session.Part, index, turnInd
 		}
 	}
 
-	applyModelSpan(&step)
+	applyModelSpan(&step, message.ModelSpans)
 	for _, span := range step.Reasoning {
 		step.ReasoningMs += span.EndMs - span.StartMs
 	}
@@ -740,17 +751,38 @@ func normalizeStep(message session.Message, parts []session.Part, index, turnInd
 	return step
 }
 
-// applyModelSpan 计算模型片段：reasoning/text 的时间并集；
-// 若该 step 只有工具调用（opencode 有时只发 tool part），按 step 起点 → 首个工具开始 估算。
-func applyModelSpan(step *Step) {
+// applyModelSpan 计算模型片段：reasoning/text 的时间并集，加上源显式记录的模型活动区间。
+//
+// recorded 来自 session.Message.ModelSpans：有源会单独记"模型什么时候在跑"，
+// 却没有可读内容（codex 的思考被加密，只有 item_completed 的 started_at_ms/completed_at_ms）。
+// 这两路都不存在时，才退回"step 起点 → 首个工具开始"的估算（只有工具调用的源）。
+func applyModelSpan(step *Step, recorded []session.ModelSpan) {
 	var starts, ends []int64
+	fromParts, fromEvents := false, false
 	for _, span := range step.Reasoning {
 		starts = append(starts, span.StartMs)
 		ends = append(ends, span.EndMs)
+		fromParts = true
 	}
 	for _, span := range step.Texts {
 		starts = append(starts, span.StartMs)
 		ends = append(ends, span.EndMs)
+		fromParts = true
+	}
+	for _, span := range recorded {
+		if span.EndMs < span.StartMs {
+			continue
+		}
+		starts = append(starts, span.StartMs)
+		ends = append(ends, span.EndMs)
+		fromEvents = true
+	}
+	segments := make([]Span, 0, len(recorded))
+	for _, span := range recorded {
+		if span.EndMs < span.StartMs {
+			continue
+		}
+		segments = append(segments, Span{StartMs: span.StartMs, EndMs: span.EndMs})
 	}
 	if len(starts) > 0 {
 		start, end := starts[0], ends[0]
@@ -766,7 +798,14 @@ func applyModelSpan(step *Step) {
 		}
 		step.ModelStartMs = int64Ptr(start)
 		step.ModelEndMs = int64Ptr(end)
-		step.ModelSpanSource = "parts"
+		switch {
+		case fromParts && fromEvents:
+			step.ModelSpanSource = "parts+events"
+		case fromEvents:
+			step.ModelSpanSource = "events"
+		default:
+			step.ModelSpanSource = "parts"
+		}
 	} else if len(step.Tools) > 0 && step.StartMs != nil {
 		var toolStarts []int64
 		for _, tool := range step.Tools {
@@ -791,9 +830,49 @@ func applyModelSpan(step *Step) {
 	if step.ModelSpanSource == "" {
 		step.ModelSpanSource = "none"
 	}
+	if len(segments) > 0 {
+		// 有分段时按段计时：外包络会把工具调用、空闲都算进模型耗时。
+		step.ModelSpans = mergeSpans(segments)
+		step.ModelMs = int64Ptr(sumSpanMs(step.ModelSpans))
+		return
+	}
 	if step.ModelStartMs != nil && step.ModelEndMs != nil {
 		step.ModelMs = int64Ptr(*step.ModelEndMs - *step.ModelStartMs)
 	}
+}
+
+// mergeSpans 合并重叠的分段（源可能把同一段活动记成多条），保序。
+func mergeSpans(spans []Span) []Span {
+	sorted := make([]Span, len(spans))
+	copy(sorted, spans)
+	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].StartMs < sorted[j].StartMs })
+	merged := make([]Span, 0, len(sorted))
+	for _, span := range sorted {
+		if len(merged) == 0 {
+			merged = append(merged, span)
+			continue
+		}
+		last := &merged[len(merged)-1]
+		if span.StartMs <= last.EndMs {
+			if span.EndMs > last.EndMs {
+				last.EndMs = span.EndMs
+			}
+			continue
+		}
+		merged = append(merged, span)
+	}
+	return merged
+}
+
+// sumSpanMs 是分段总时长（段之间不重叠，直接相加）。
+func sumSpanMs(spans []Span) int64 {
+	var total int64
+	for _, span := range spans {
+		if span.EndMs > span.StartMs {
+			total += span.EndMs - span.StartMs
+		}
+	}
+	return total
 }
 
 func applyStepStatus(step *Step, message session.Message) {

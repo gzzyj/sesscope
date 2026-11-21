@@ -18,12 +18,24 @@ type toolRef struct {
 	part    int
 }
 
+// pendingSpan 是 item_completed 里记录、但要等对应 response_item 落地后才能挂上的区间。
+// codex 先写 item_completed（带 started_at_ms/completed_at_ms），再写 response_item；
+// 顺序反过来会让"先建 part 再补时间"变成"先补时间再建 part"，所以这里延后到 finalize。
+type pendingSpan struct {
+	id     string
+	kind   string // reasoning | agent
+	turnID string
+	start  int64
+	end    int64
+}
+
 type mapper struct {
 	out            *session.Session
 	opts           source.OpenOptions
 	turnID         string
 	turnNumber     int
 	tools          map[string]toolRef
+	pending        []pendingSpan
 	lastAssistant  int
 	userFromItems  bool
 	systemFromUser []int
@@ -171,13 +183,24 @@ func (m *mapper) applyCompletedItem(event eventPayload, at int64) {
 	if err := json.Unmarshal(event.Item, &completed); err != nil {
 		return
 	}
-	if completed.Type != "UserMessage" {
+	switch completed.Type {
+	case "Reasoning", "AgentMessage":
+		m.captureModelSpan(completed, event)
+		return
+	case "UserMessage":
+		// 人类轮次锚：只有它能把 role=user 的注入内容区分开（见下方注释）。
+	default:
+		// 工具类 item（McpToolCall / CommandExecution ...）的 started/completed
+		// 只差 0-1ms，不如"调用记录 → 结果记录"的时间差可靠，继续用后者。
 		return
 	}
 	m.userFromItems = true
 	parts := make([]session.Part, 0, len(completed.Content))
 	for index, block := range completed.Content {
 		text := m.clip(block.Text)
+		if strings.TrimSpace(text) == "" {
+			continue
+		}
 		parts = append(parts, session.Part{
 			ID:        completed.ID + "#" + itoa(index),
 			Kind:      session.PartText,
@@ -204,6 +227,113 @@ func (m *mapper) applyCompletedItem(event eventPayload, at int64) {
 		TurnHint:    session.TurnHint{TurnID: m.turnID},
 		Parts:       parts,
 	})
+}
+
+// captureModelSpan 记下 item_completed 里 Reasoning / AgentMessage 的真实起止。
+//
+// rollout 里每条 response_item 只带一个"写入时刻"，真正的起止在 item_completed 的
+// started_at_ms/completed_at_ms。思考内容常常是加密的（没有 Part 可挂），但这段模型
+// 活动确实发生过，所以区间单独存进 Message.ModelSpans，派生层用它画模型泳道。
+func (m *mapper) captureModelSpan(completed item, event eventPayload) {
+	if event.StartedAtMs == nil || event.CompletedAtMs == nil {
+		return
+	}
+	start, end := *event.StartedAtMs, *event.CompletedAtMs
+	if end < start {
+		return
+	}
+	kind := "reasoning"
+	if completed.Type == "AgentMessage" {
+		kind = "agent"
+	}
+	m.pending = append(m.pending, pendingSpan{id: completed.ID, kind: kind, turnID: m.turnID, start: start, end: end})
+}
+
+// applyPendingSpans 在 finalize 阶段把区间挂到具体的消息/部件上（此时 response_item 已落地）。
+func (m *mapper) applyPendingSpans() {
+	unattached := 0
+	for _, span := range m.pending {
+		index, partIndex := m.spanOwner(span)
+		if index < 0 {
+			unattached++
+			continue
+		}
+		message := &m.out.Messages[index]
+		if span.kind == "agent" {
+			message.CreatedMs = session.I64(span.start)
+			message.CompletedMs = session.I64(span.end)
+			for position := range message.Parts {
+				part := &message.Parts[position]
+				if part.Kind != session.PartText {
+					continue
+				}
+				part.CreatedMs = session.I64(span.start)
+				part.UpdatedMs = session.I64(span.end)
+				part.StartMs = session.I64(span.start)
+				part.EndMs = session.I64(span.end)
+			}
+		}
+		message.ModelSpans = append(message.ModelSpans, session.ModelSpan{StartMs: span.start, EndMs: span.end})
+		if partIndex >= 0 {
+			part := &message.Parts[partIndex]
+			part.CreatedMs = session.I64(span.start)
+			part.UpdatedMs = session.I64(span.end)
+			part.StartMs = session.I64(span.start)
+			part.EndMs = session.I64(span.end)
+		}
+	}
+	if unattached > 0 {
+		m.out.Diagnostics = append(m.out.Diagnostics, session.Diagnostic{
+			Level: "info", Code: "model-span-unattached", Title: "有模型活动区间挂不上步骤",
+			Detail: itoa(unattached) + " 段 item_completed 区间找不到所属 assistant 消息（rollout 可能缺 response_item）。",
+		})
+	}
+}
+
+// spanOwner 找区间该挂到哪条消息：
+//  1. AgentMessage：按消息 id 精确匹配（response_item 里就是同一个 id）；
+//  2. Reasoning：优先找同 id 的思考 part（有文本时）；
+//  3. 都没有（思考被加密）：挂到同一轮里起点最近的 assistant 步骤。
+func (m *mapper) spanOwner(span pendingSpan) (int, int) {
+	if span.kind == "agent" {
+		for index := range m.out.Messages {
+			if m.out.Messages[index].ID == span.id {
+				return index, -1
+			}
+		}
+		return -1, -1
+	}
+	for index := range m.out.Messages {
+		for partIndex := range m.out.Messages[index].Parts {
+			if m.out.Messages[index].Parts[partIndex].ID == span.id {
+				return index, partIndex
+			}
+		}
+	}
+	if index := m.nearestAssistant(span, func(start int64) bool { return start <= span.start }, true); index >= 0 {
+		return index, -1
+	}
+	return m.nearestAssistant(span, func(start int64) bool { return start >= span.start }, false), -1
+}
+
+// nearestAssistant 在同一轮的 assistant 消息里挑起点最近的一条。
+func (m *mapper) nearestAssistant(span pendingSpan, keep func(int64) bool, preferLater bool) int {
+	best := -1
+	var bestStart int64
+	for index := range m.out.Messages {
+		message := m.out.Messages[index]
+		if message.Role != session.RoleAssistant || message.TurnHint.TurnID != span.turnID || message.CreatedMs == nil {
+			continue
+		}
+		start := *message.CreatedMs
+		if !keep(start) {
+			continue
+		}
+		if best < 0 || (preferLater && start > bestStart) || (!preferLater && start < bestStart) {
+			best, bestStart = index, start
+		}
+	}
+	return best
 }
 
 func (m *mapper) applyResponseItem(record rolloutRecord) {
@@ -242,6 +372,9 @@ func (m *mapper) applyMessage(item responseItem, at int64) {
 	parts := make([]session.Part, 0, len(item.Content))
 	for index, block := range item.Content {
 		text := m.clip(block.Text)
+		if strings.TrimSpace(text) == "" {
+			continue // 空 content 块（占位/图片说明缺失）不产生空文本部件
+		}
 		parts = append(parts, session.Part{
 			ID:        item.ID + "#" + itoa(index),
 			Kind:      session.PartText,
@@ -267,6 +400,9 @@ func (m *mapper) applyMessage(item responseItem, at int64) {
 	if item.Role == "user" || item.Role == "developer" || item.Role == "system" {
 		message.Synthetic = true
 	}
+	if role == session.RoleAssistant && m.lastAssistant >= 0 {
+		m.closeOpenAssistant(m.lastAssistant)
+	}
 	m.out.Messages = append(m.out.Messages, message)
 	if role == session.RoleAssistant {
 		m.lastAssistant = len(m.out.Messages) - 1
@@ -274,6 +410,29 @@ func (m *mapper) applyMessage(item responseItem, at int64) {
 	}
 	if item.Role == "user" {
 		m.systemFromUser = append(m.systemFromUser, len(m.out.Messages)-1)
+	}
+}
+
+// closeOpenAssistant 给上一条 assistant 补结束时间：它最后一个 part 的 end。
+// codex 只在 task_complete 写整轮结束；中途由工具调用聚合出来的 assistant 消息没有结束记录，
+// 但"最后一条工具结果写完"就是这条消息的结束——这是用真实 part 时间收口，不是编造。
+func (m *mapper) closeOpenAssistant(index int) {
+	message := &m.out.Messages[index]
+	if message.CompletedMs != nil {
+		return
+	}
+	var end *int64
+	for position := range message.Parts {
+		part := message.Parts[position]
+		if part.EndMs != nil && (end == nil || *part.EndMs > *end) {
+			end = part.EndMs
+		}
+		if part.Tool != nil && part.Tool.EndMs != nil && (end == nil || *part.Tool.EndMs > *end) {
+			end = part.Tool.EndMs
+		}
+	}
+	if end != nil {
+		message.CompletedMs = end
 	}
 }
 
@@ -449,6 +608,7 @@ func componentTime(part session.Part) *int64 {
 
 // finalize：老版本没有 item_completed{UserMessage} 时，把 role=user 的 response_item 提升成轮次。
 func (m *mapper) finalize() {
+	m.applyPendingSpans()
 	if !m.userFromItems {
 		for _, index := range m.systemFromUser {
 			message := &m.out.Messages[index]
@@ -481,6 +641,12 @@ func (m *mapper) finalize() {
 		m.out.Diagnostics = append(m.out.Diagnostics, session.Diagnostic{
 			Level: "warn", Code: "truncated-text", Title: "文本/工具输出按上限截断",
 			Detail: "只保留前 " + itoa(m.opts.MaxTextBytes) + " 字节。",
+		})
+	}
+	if len(m.out.Messages) == 0 {
+		m.out.Diagnostics = append(m.out.Diagnostics, session.Diagnostic{
+			Level: "info", Code: "empty-session", Title: "这个 rollout 里没有对话记录",
+			Detail: "只有元信息/系统类记录；导出后消息为空，不是读取失败。",
 		})
 	}
 	if len(m.out.Messages) > 0 {

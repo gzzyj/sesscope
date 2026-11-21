@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gzzyj/sesscope/internal/session"
 )
 
 func ptr[T any](value T) *T { return &value }
@@ -165,6 +167,47 @@ func TestNormalizeToolGapModelSpan(t *testing.T) {
 	}
 	if step.Tools[0].ArgsText != "{\n  \"command\": \"ls\"\n}" {
 		t.Errorf("参数文本 = %q", step.Tools[0].ArgsText)
+	}
+}
+
+// TestNormalizeModelSpanFromEvents：源显式记录的模型区间（codex item_completed）要参与计算，
+// 否则"只有写入时刻、没有内容"的思考会让模型泳道变成 0ms。
+func TestNormalizeModelSpanFromEvents(t *testing.T) {
+	created, completed := int64(1000), int64(3000)
+	start, end := int64(1100), int64(1600)
+	value := &session.Session{
+		Ref: session.Ref{Source: session.Codex, ID: "s1"},
+		Messages: []session.Message{
+			{
+				ID: "u1", Role: session.RoleUser, CreatedMs: &created,
+				Parts: []session.Part{{
+					ID: "p0", Kind: session.PartText, Type: "text",
+					CreatedMs: &created, StartMs: &created, EndMs: &created, Text: session.Str("跑一下"),
+				}},
+			},
+			{
+				ID: "a1", Role: session.RoleAssistant, CreatedMs: &created, CompletedMs: &completed,
+				ModelSpans: []session.ModelSpan{{StartMs: start, EndMs: end}},
+				Parts:      []session.Part{},
+			},
+		},
+	}
+	data, err := Normalize(value, testOptions())
+	if err != nil {
+		t.Fatalf("归一化失败：%v", err)
+	}
+	step := data.Turns[0].Steps[0]
+	if step.ModelSpanSource != "events" {
+		t.Errorf("modelSpanSource = %q，期望 events", step.ModelSpanSource)
+	}
+	if step.ModelStartMs == nil || *step.ModelStartMs != start || step.ModelEndMs == nil || *step.ModelEndMs != end {
+		t.Errorf("模型片段 = %v..%v，期望 %d..%d", step.ModelStartMs, step.ModelEndMs, start, end)
+	}
+	if step.ModelMs == nil || *step.ModelMs != 500 {
+		t.Errorf("modelMs = %v，期望 500", step.ModelMs)
+	}
+	if data.Stats.ModelMs != 500 {
+		t.Errorf("stats.modelMs = %d，期望 500", data.Stats.ModelMs)
 	}
 }
 
