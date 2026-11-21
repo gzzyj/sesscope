@@ -9,7 +9,7 @@ import (
 const (
 	ExitOK          = 0 // 成功（含"正常空集"）
 	ExitRuntime     = 1 // 运行期失败（写文件、渲染……）
-	ExitBadInput    = 2 // 输入问题（参数、歧义、库不存在）
+	ExitBadInput    = 2 // 输入问题（参数、歧义、来源未指明、库不存在）
 	ExitUnsupported = 3 // 来源或格式不支持
 )
 

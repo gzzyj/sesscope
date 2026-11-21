@@ -101,54 +101,91 @@ func (s *Selection) NoStoreError() error {
 	return fmt.Errorf("%w：%s", ErrNoStore, builder.String())
 }
 
-// OpenSession 按选择器（id 前缀或 source:id）唯一确定并打开一个会话。
-// 歧义时报 *source.AmbiguousError（带候选），绝不猜。
+// OpenSession 按"来源 + 源内 id 前缀"唯一确定并打开一个会话。
+//
+// 契约（见 docs/cli.md §6）：
+//   - 会话 id 只在所属来源内唯一，选择器必须带来源（--source 或 <source>:<id>）；
+//     裸 id 在 --source 没收敛到单一来源时直接报 *source.SourceRequiredError，
+//     绝不把四个来源的 id 混成一个全局命名空间去扫。
+//   - 候选只在"所选来源"的存储里收集，因此结果不随本机还装了哪些产品而变。
+//   - 同源内前缀命中多个会话时报 *source.AmbiguousError（带候选），绝不猜。
 func (e *Env) OpenSession(ctx context.Context, selection *Selection, selector string, opts source.OpenOptions) (*session.Session, source.Store, error) {
 	readable := selection.Readable()
 	if len(readable) == 0 {
 		return nil, source.Store{}, selection.NoStoreError()
 	}
-	candidates, problems := source.Candidates(ctx, readable)
+	chosen, err := source.ParseSelector(selector, selection.SourceIDs())
+	if err != nil {
+		return nil, source.Store{}, err
+	}
+	stores := locatedFor(readable, chosen.Source)
+	if len(stores) == 0 {
+		return nil, source.Store{}, fmt.Errorf("%w：来源 %s 没有可读的存储（用 --store / --home 指定，或 --source 换一个来源）", ErrNoStore, chosen.Source)
+	}
+	candidates, problems := source.Candidates(ctx, stores)
 	if len(problems) > 0 {
 		for _, problem := range problems {
 			fmt.Fprintf(e.Stderr, "提示：%v"+NL, problem)
 		}
 	}
-	matched, err := source.Find(candidates, selector)
-	if err != nil {
-		return nil, source.Store{}, err
-	}
+	matched := source.Find(candidates, chosen)
 	switch len(matched) {
 	case 0:
-		return nil, source.Store{}, fmt.Errorf("%w：%q", source.ErrNotFound, selector)
+		return nil, source.Store{}, fmt.Errorf("%w：%s", source.ErrNotFound, chosen)
 	case 1:
 		hit := matched[0]
 		item, ok := e.Registry.Get(hit.Ref.Source)
 		if !ok {
 			return nil, source.Store{}, fmt.Errorf("来源 %s 未注册", hit.Ref.Source)
 		}
-		store, ok := findStore(readable, hit.Ref)
+		store, ok := findStore(stores, hit.Ref)
 		if !ok {
-			return nil, source.Store{}, fmt.Errorf("找不到 %s 对应的存储", hit.Ref.ID)
+			return nil, source.Store{}, fmt.Errorf("会话 %s 命中的存储 %q 不在本次定位结果里（定位到：%s）",
+				hit.Ref.ID, hit.Ref.Store, storePaths(stores))
 		}
 		opened, err := item.Open(ctx, store, hit.Ref, opts)
 		return opened, store, err
 	default:
-		return nil, source.Store{}, &source.AmbiguousError{Selector: selector, Candidates: matched}
+		return nil, source.Store{}, &source.AmbiguousError{Selector: chosen.String(), Candidates: matched}
 	}
 }
 
-func findStore(located []source.Located, ref session.Ref) (source.Store, bool) {
+// SourceIDs 返回本次选中的来源 id（顺序与 --source 一致）。
+func (s *Selection) SourceIDs() []session.SourceID {
+	ids := make([]session.SourceID, 0, len(s.Sources))
+	for _, item := range s.Sources {
+		ids = append(ids, item.ID())
+	}
+	return ids
+}
+
+// locatedFor 只保留某个来源的存储：候选收集与打开都限定在这个集合里。
+func locatedFor(located []source.Located, want session.SourceID) []source.Located {
+	out := make([]source.Located, 0, len(located))
 	for _, item := range located {
-		if item.Store.Source == ref.Source && item.Store.Path == ref.Store {
-			return item.Store, true
+		if item.Store.Source == want {
+			out = append(out, item)
 		}
 	}
-	// Ref.Store 可能为空（某些来源不填），退化为"该来源的第一个可读存储"
-	for _, item := range located {
-		if item.Store.Source == ref.Source {
+	return out
+}
+
+// findStore 要求"命中候选的那个存储"与定位结果精确对上。
+// 不再退化成"该来源的第一个存储"：那样会把一个存储里解析出的 id 拿到另一个存储里打开，
+// 结果看似成功、实际读的是另一份数据（多根目录、多版本库时尤其危险）。
+func findStore(stores []source.Located, ref session.Ref) (source.Store, bool) {
+	for _, item := range stores {
+		if item.Store.Path == ref.Store {
 			return item.Store, true
 		}
 	}
 	return source.Store{}, false
+}
+
+func storePaths(stores []source.Located) string {
+	parts := make([]string, 0, len(stores))
+	for _, item := range stores {
+		parts = append(parts, item.Store.Path)
+	}
+	return strings.Join(parts, "、")
 }

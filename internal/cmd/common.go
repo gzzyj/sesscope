@@ -130,7 +130,8 @@ func wrap(err error) error {
 		return cli.BadInput(err)
 	case errors.Is(err, source.ErrUnsupported):
 		return cli.Unsupported(err)
-	case errors.Is(err, source.ErrAmbiguous), errors.Is(err, source.ErrNotFound):
+	case errors.Is(err, source.ErrAmbiguous), errors.Is(err, source.ErrNotFound),
+		errors.Is(err, source.ErrSourceRequired), errors.Is(err, source.ErrSourceMismatch):
 		return cli.BadInput(err)
 	default:
 		return err

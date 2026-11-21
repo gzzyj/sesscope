@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gzzyj/sesscope/internal/session"
@@ -166,22 +167,66 @@ type Check struct {
 
 // 稳定的错误族，CLI 按它映射退出码。
 var (
-	ErrNotFound    = errors.New("会话不存在")
-	ErrAmbiguous   = errors.New("会话 id 前缀歧义")
-	ErrUnsupported = errors.New("来源或格式不支持")
+	ErrNotFound       = errors.New("会话不存在")
+	ErrAmbiguous      = errors.New("会话 id 前缀歧义")
+	ErrSourceRequired = errors.New("会话 id 必须落在某个来源内")
+	ErrSourceMismatch = errors.New("选择器的来源不在本次选择范围内")
+	ErrUnsupported    = errors.New("来源或格式不支持")
 )
 
 // AmbiguousError 带上候选，方便 CLI 直接打表，绝不"猜一个"。
+// 候选永远来自同一个来源：前缀只在源内解析，不跨源比长度。
 type AmbiguousError struct {
 	Selector   string
 	Candidates []Candidate
 }
 
 func (e *AmbiguousError) Error() string {
-	return fmt.Sprintf("%q 命中了 %d 个会话，请给更长的前缀或用 source:id 形式", e.Selector, len(e.Candidates))
+	return fmt.Sprintf("%q 在来源内命中了 %d 个会话，请给更长的前缀", e.Selector, len(e.Candidates))
 }
 
 func (e *AmbiguousError) Is(target error) bool { return target == ErrAmbiguous }
+
+// SourceRequiredError 说明"裸 id 没有来源上下文"。
+//
+// 会话 id 是各产品自己的命名空间（opencode 的 ses_…、dsh 的 session-<uuid>、
+// codex/claude 的文件名 uuid），不保证跨源唯一，也不保证稳定；把它当全局 id 解析，
+// 结果会随"这台机器上装了哪些产品、哪个库读得动"而变。所以宁可报错，也不跨源扫。
+type SourceRequiredError struct {
+	Selector string
+	Scope    []session.SourceID
+}
+
+func (e *SourceRequiredError) Error() string {
+	return fmt.Sprintf("会话 id %q 只在所属来源内唯一，必须指明来源：用 --source <source> 或写成 <source>:<id>（当前可用来源：%s）",
+		e.Selector, JoinSourceIDs(e.Scope))
+}
+
+func (e *SourceRequiredError) Is(target error) bool { return target == ErrSourceRequired }
+
+// SourceMismatchError 说明选择器里的来源与 --source 冲突，不替用户改主意。
+type SourceMismatchError struct {
+	Source session.SourceID
+	Scope  []session.SourceID
+}
+
+func (e *SourceMismatchError) Error() string {
+	return fmt.Sprintf("选择器指定来源 %s，但它不在本次 --source 范围内（当前：%s）", e.Source, JoinSourceIDs(e.Scope))
+}
+
+func (e *SourceMismatchError) Is(target error) bool { return target == ErrSourceMismatch }
+
+// JoinSourceIDs 把来源列表拼成 "opencode / dsh / codex / claude" 这样的提示串。
+func JoinSourceIDs(ids []session.SourceID) string {
+	if len(ids) == 0 {
+		return "（无）"
+	}
+	parts := make([]string, 0, len(ids))
+	for _, id := range ids {
+		parts = append(parts, string(id))
+	}
+	return strings.Join(parts, " / ")
+}
 
 // UnsupportedError 说明为什么不支持（版本/表集/记录类型），CLI 据此退出码 3。
 type UnsupportedError struct {

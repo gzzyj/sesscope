@@ -26,7 +26,8 @@ func newExportCommand(env *app.Env) *cobra.Command {
   --format canonical  （默认）规范格式，render/analyze 都吃
   --format legacy     旧的 opencode 形状 session-export.json（仅 opencode 支持）
 
---session 支持 id 前缀与 source:id 形式；跨来源歧义时列出候选并以退出码 2 结束。`,
+--session 必须带来源：写成 <source>:<id>，或同时给 --source <source>。会话 id 只在所属来源内
+唯一，裸 id 无法定位；id 支持前缀，同源内命中多个时列出候选并以退出码 2 结束，不猜。`,
 		GroupID: "fetch",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -114,7 +115,7 @@ func newExportCommand(env *app.Env) *cobra.Command {
 	}
 	sourceOpts.add(command)
 	command.Flags().BoolVarP(&quiet, "quiet", "q", false, "不打印摘要")
-	command.Flags().StringVar(&sessionID, "session", "", "会话 id（支持前缀，也支持 source:id）")
+	command.Flags().StringVar(&sessionID, "session", "", "会话，必须带来源：<source>:<id>（支持 id 前缀；也可配合 --source）")
 	command.Flags().StringVarP(&outPath, "out", "o", "-", "输出 JSON 路径，- 表示 stdout")
 	command.Flags().StringVar(&htmlPath, "html", "", "可选：同时渲染 HTML 到这个路径")
 	command.Flags().StringVar(&dataPath, "data", "", "可选：同时写出归一化数据（需配合 --html）")

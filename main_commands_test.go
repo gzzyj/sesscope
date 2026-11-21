@@ -201,7 +201,7 @@ func TestExportLegacyFormat(t *testing.T) {
 	dbPath := fixtureDB(t)
 	dir := t.TempDir()
 	jsonPath := filepath.Join(dir, "session-export.json")
-	code, _, stderr := runArgs(t, "export", "--db", dbPath, "--session", "ses_root", "--format", "legacy", "--out", jsonPath)
+	code, _, stderr := runArgs(t, "export", "--db", dbPath, "--source", "opencode", "--session", "ses_root", "--format", "legacy", "--out", jsonPath)
 	if code != exitOK {
 		t.Fatalf("退出码 = %d，stderr：%s", code, stderr)
 	}
@@ -240,7 +240,7 @@ func TestExportCanonicalThenRender(t *testing.T) {
 	dir := t.TempDir()
 	jsonPath := filepath.Join(dir, "session.json")
 	htmlPath := filepath.Join(dir, "trace.html")
-	code, _, stderr := runArgs(t, "export", "--db", dbPath, "--session", "ses_root", "--out", jsonPath, "--html", htmlPath)
+	code, _, stderr := runArgs(t, "export", "--db", dbPath, "--session", "opencode:ses_root", "--out", jsonPath, "--html", htmlPath)
 	if code != exitOK {
 		t.Fatalf("退出码 = %d，stderr：%s", code, stderr)
 	}
@@ -289,7 +289,7 @@ func TestExportCanonicalThenRender(t *testing.T) {
 
 func TestExportMissingSession(t *testing.T) {
 	dbPath := fixtureDB(t)
-	code, stdout, stderr := runArgs(t, "export", "--db", dbPath, "--session", "ses_nope")
+	code, stdout, stderr := runArgs(t, "export", "--db", dbPath, "--source", "opencode", "--session", "ses_nope")
 	if code != exitBadInput {
 		t.Errorf("退出码 = %d，期望 %d", code, exitBadInput)
 	}
@@ -298,6 +298,69 @@ func TestExportMissingSession(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "会话不存在") {
 		t.Errorf("stderr = %s", stderr)
+	}
+}
+
+func TestExportRejectsBareSessionIDWithoutSource(t *testing.T) {
+	dbPath := fixtureDB(t)
+	code, stdout, stderr := runArgs(t, "export", "--db", dbPath, "--session", "ses_root")
+	if code != exitBadInput {
+		t.Errorf("退出码 = %d，期望 %d", code, exitBadInput)
+	}
+	if stdout != "" {
+		t.Errorf("失败时不该写 stdout")
+	}
+	if !strings.Contains(stderr, "只在所属来源内唯一") || !strings.Contains(stderr, "--source") {
+		t.Errorf("stderr 应说明必须带来源：%s", stderr)
+	}
+}
+
+func TestExportAcceptsQualifiedSelector(t *testing.T) {
+	dbPath := fixtureDB(t)
+	// 只给 id 前缀、不给 --source，靠 source:id 带出唯一来源。
+	code, stdout, stderr := runArgs(t, "export", "--db", dbPath, "--session", "opencode:ses_ro")
+	if code != exitOK {
+		t.Fatalf("退出码 = %d，stderr：%s", code, stderr)
+	}
+	var document struct {
+		Schema  string `json:"schema"`
+		Session struct {
+			Ref struct {
+				Source string `json:"source"`
+				ID     string `json:"id"`
+			} `json:"ref"`
+		} `json:"session"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &document); err != nil {
+		t.Fatalf("规范导出不是合法 JSON：%v", err)
+	}
+	if document.Schema != "sesscope/session.v1" {
+		t.Errorf("schema = %q", document.Schema)
+	}
+	if document.Session.Ref.Source != "opencode" || document.Session.Ref.ID != testfixture.RootSessionID {
+		t.Errorf("ref = %+v", document.Session.Ref)
+	}
+}
+
+func TestExportRejectsSourceOutsideSelection(t *testing.T) {
+	dbPath := fixtureDB(t)
+	code, _, stderr := runArgs(t, "export", "--db", dbPath, "--source", "dsh", "--session", "opencode:ses_root")
+	if code != exitBadInput {
+		t.Errorf("退出码 = %d，期望 %d", code, exitBadInput)
+	}
+	if !strings.Contains(stderr, "不在本次 --source 范围内") {
+		t.Errorf("stderr 应指出来源冲突：%s", stderr)
+	}
+}
+
+func TestSessionsPrintsQualifiedSelector(t *testing.T) {
+	dbPath := fixtureDB(t)
+	code, stdout, stderr := runArgs(t, "sessions", "--db", dbPath, "--limit", "0")
+	if code != exitOK {
+		t.Fatalf("退出码 = %d，stderr：%s", code, stderr)
+	}
+	if !strings.Contains(stdout, "opencode:"+testfixture.DemoSessionID) {
+		t.Errorf("SESSION 列应是 source:id，实际：%s", stdout)
 	}
 }
 

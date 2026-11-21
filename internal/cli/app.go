@@ -151,9 +151,11 @@ func rootLong(version string) string {
 
 从零开始：
   1) sesscope sources                   # 有哪些来源、存储在哪、能不能读
-  2) sesscope sessions --limit 20       # 跨来源列会话（拿到会话 id）
-  3) sesscope export --session <id> --html trace.html
-  4) sesscope analyze --session <id>    # 不调模型的确定性归因
+  2) sesscope sessions --limit 20       # 跨来源列会话（拿到 source:id）
+  3) sesscope export --session dsh:session-59b8… --html trace.html
+  4) sesscope analyze --session dsh:session-59b8…   # 不调模型的确定性归因
+
+会话 id 只在所属来源内唯一，所以 --session 必须带来源（<source>:<id> 或 --source <source>）。
 
 每个子命令都可以 --help 看自己的参数。`
 }

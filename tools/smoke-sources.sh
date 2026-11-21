@@ -20,7 +20,8 @@ for src in opencode dsh codex claude; do
     continue
   fi
   html="$DIR/$src.html"
-  out=$("$BIN" export --session "$id" --html "$html" --quiet 2>&1)
+  # 会话 id 只在来源内唯一，选择器必须带来源（这里等价于 --source "$src"）。
+  out=$("$BIN" export --session "$src:$id" --html "$html" --quiet 2>&1)
   code=$?
   size=0
   [ -f "$html" ] && size=$(wc -c < "$html" | tr -d ' ')

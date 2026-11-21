@@ -8,6 +8,7 @@ import (
 
 	"github.com/gzzyj/sesscope/internal/app"
 	"github.com/gzzyj/sesscope/internal/cli"
+	"github.com/gzzyj/sesscope/internal/session"
 	"github.com/gzzyj/sesscope/internal/source"
 	"github.com/gzzyj/sesscope/internal/table"
 )
@@ -23,7 +24,8 @@ func newSessionsCommand(env *app.Env) *cobra.Command {
 		Short:   "列出会话（跨来源；--source 限定）",
 		Long: `跨来源列出会话。四源共用同一套过滤/排序语义（--workspace/--grep/--sort/--limit）。
 
-会话 id 支持前缀；导出时若前缀跨来源命中多个会话，会列出候选并退出码 2，不猜。
+会话 id 只在所属来源内唯一，所以 SESSION 列打成 <source>:<id>，可以直接粘给 export / analyze。
+前缀只在源内匹配；同一来源内命中多个会话时列出候选并退出码 2，不猜。
 文件型来源（dsh/codex/claude）的 UPDATED 可能取自文件修改时间，表格里打 * 号说明。`,
 		GroupID: "discover",
 		Args:    cobra.NoArgs,
@@ -86,7 +88,7 @@ func printSessions(cmd *cobra.Command, list *app.SessionList, filterOpts filterO
 		}
 		rows = append(rows, []string{
 			string(item.Source),
-			item.ID,
+			sessionSelector(item.Source, item.ID),
 			cli.TruncateDisplay(workspace, 16),
 			cli.TruncateDisplay(title, 40),
 			strconv.Itoa(item.Messages),
@@ -119,6 +121,11 @@ func printSessions(cmd *cobra.Command, list *app.SessionList, filterOpts filterO
 		fmt.Fprint(stderr, "* UPDATED 取自文件修改时间（该来源不在文件里记录最后活动时间）"+NL)
 	}
 	printProblems(stderr, list.Problems)
-	fmt.Fprint(stderr, "下一步：sesscope export --session <会话 id> --html trace.html"+NL)
+	fmt.Fprint(stderr, "下一步：sesscope export --session <source>:<id> --html trace.html"+NL)
 	return nil
+}
+
+// sessionSelector 把来源与源内 id 拼成唯一选择器：会话 id 单独拿出来并不唯一。
+func sessionSelector(sourceID session.SourceID, id string) string {
+	return string(sourceID) + ":" + id
 }

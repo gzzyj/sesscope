@@ -141,7 +141,7 @@ func newAnalyzeCommand(env *app.Env) *cobra.Command {
 	sourceOpts.add(command)
 	outputOpts.add(command)
 	command.Flags().StringVar(&inPath, "in", "", "会话导出 JSON 路径（新旧格式都认；- 表示 stdin）")
-	command.Flags().StringVar(&sessionID, "session", "", "会话 id（从本地来源直接分析，支持前缀）")
+	command.Flags().StringVar(&sessionID, "session", "", "会话，必须带来源：<source>:<id>（支持 id 前缀；也可配合 --source）")
 	command.Flags().BoolVarP(&verbose, "verbose", "v", false, "逐条打印证据与补偿动作")
 	command.Flags().IntVarP(&limit, "limit", "n", 20, "最多打印多少条事件链（0 表示不限）")
 	command.Flags().IntVar(&chainGap, "chain-gap", attribution.DefaultChainGap, "补偿链允许夹带的无关步数上限")
