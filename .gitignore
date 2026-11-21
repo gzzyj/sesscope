@@ -1,3 +1,29 @@
-out/
+# ---- 构建产物 ----
+# make build → out/sesscope；整个目录忽略（demo / smoke 报告都在里面）
+/out/
+# 在仓库根直接 go build 时生成的二进制
+/sesscope
+/opencode-trace
 *.test
 *.out
+*.prof
+coverage.*
+
+# ---- 本地导出的会话产物 ----
+# 只列文档里出现过的路径，不用 /*.json 这种大范围通配：
+# 避免哪天根目录加了配置 json 被静默忽略（这类"看不见的规则"比多写几行更贵）
+/session-export.json
+/trace.html
+/trace-data.json
+
+# ---- 文档配图 ----
+# docs/assets/*.png 是 README 截图，需要提交（故意不忽略）
+# 重新生成：google-chrome --headless=new --hide-scrollbars --window-size=1600,860 \
+#   --screenshot=docs/assets/page.png "file://$PWD/out/smoke/opencode.html"
+
+# ---- 编辑器 / 系统 ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
