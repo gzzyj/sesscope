@@ -31,14 +31,15 @@
       render      导出 JSON（新旧格式都认）→ 自包含 HTML
     元信息
       version     版本 + 各来源能力摘要
+      audit       字段门禁：检查抽象会话里"该有却没有"的字段
       help        帮助（等价于 <命令> --help）
 
 典型四步链路：
 
     sesscope sources                                  # 1. 有哪些来源、存储在哪、能不能读
-    sesscope sessions --limit 20                      # 2. 跨来源列会话（拿到 id）
-    sesscope export --session <id> --html trace.html  # 3. 导出并出页面
-    sesscope analyze --session <id>                   # 4. 归因
+    sesscope sessions --limit 20                      # 2. 跨来源列会话（拿到 source:id）
+    sesscope export --session dsh:session-59b8… --html trace.html  # 3. 导出并出页面
+    sesscope analyze --session dsh:session-59b8…      # 4. 归因
 
 ## 3. 资源定位（统一规则）
 
@@ -53,6 +54,7 @@
 | ⑤ | 已知默认路径 | 各来源文档化的默认根（见 docs/sources.md） |
 
 --source 限定来源：auto（默认，全部已探测）/ opencode / dsh / codex / claude，可逗号分隔。
+它同时决定会话 id 的解析命名空间：id 只在来源内唯一，`--session` 必须带来源（见 §6）。
 
 **失败必须显性**：
 
@@ -60,7 +62,8 @@
 |---|---|
 | 一个可读存储都没有 | 报错并列出尝试过的路径与规则，退出码 2 |
 | 存储存在但格式不支持 | 如实标成 unsupported + 原因；读它时退出码 3，**不返回 0 个会话** |
-| 会话 id 前缀跨来源歧义 | 列出候选（SOURCE/ID/TITLE），退出码 2，**不猜** |
+| 会话 id 没带来源 | 说明 `<source>:<id>` 与 `--source` 两种写法，退出码 2，**不跨源扫描** |
+| 同一来源内前缀命中多个会话 | 列出候选（SOURCE/ID/TITLE），退出码 2，**不猜** |
 | 某来源读取失败 | 其它来源照常输出；失败逐条写 stderr（提示：<source>：<原因>） |
 
 ## 4. 输出约定
@@ -140,7 +143,7 @@ STATUS 取值：ok / unsupported / unreadable / missing。
 
 | 参数 | 默认 | 说明 |
 |---|---|---|
-| --session | 必填 | 会话 id（支持前缀、source:id） |
+| --session | 必填 | 会话，必须带来源：`<source>:<id>`（或配合 --source；支持 id 前缀） |
 | --out / -o | - | 导出 JSON 路径，- 为 stdout |
 | --format | canonical | canonical（规范格式）/ legacy（旧 opencode 形状，仅 opencode） |
 | --html | 空 | 同时渲染 HTML |
@@ -153,11 +156,31 @@ STATUS 取值：ok / unsupported / unreadable / missing。
 
 | 参数 | 默认 | 说明 |
 |---|---|---|
-| --in / --session | 二选一 | 读导出 JSON（新旧都认）或直连来源 |
+| --in / --session | 二选一 | 读导出 JSON（新旧都认）或直连来源（`<source>:<id>`，或配合 --source） |
 | --verbose / -v | false | 打印证据与补偿动作 |
 | --limit / -n | 20 | 最多打印多少条事件链 |
 | --chain-gap | 6 | 补偿链宽容度 |
 | --json / -j | false | 机器可读 |
+
+### audit（字段门禁）
+
+逐个打开会话，按 domain model 检查必填字段，按"来源 + 字段"聚合；有必需字段空缺时退出码 1。
+
+| 参数 | 默认 | 说明 |
+|---|---|---|
+| --source / -s | auto | 限定来源 |
+| --limit / -n | 10 | 每源最多审计多少个（按 updated 倒序；0 = 全部） |
+| --json / -j | false | 机器可读（scanned / totals / issues） |
+
+两级结果：
+
+| 级别 | 含义 | 例子 |
+|---|---|---|
+| violation | 身份/结构字段缺失，一定是适配器 bug，门禁失败 | meta.id、message.created_ms、tool.status、tool.command |
+| note | 可选字段缺失，只报告不拦截 | tokens、最后一条 message.completed_ms（可能还在写）、空会话的 title |
+
+不算空缺：能力位声明没有这项数据（dsh 不写 reasoning token）、源写了诊断解释
+（encrypted-reasoning / empty-session）、工具还在运行或已报错。
 
 ### render
 
@@ -174,8 +197,11 @@ STATUS 取值：ok / unsupported / unreadable / missing。
 
 ## 6. 跨命令约定
 
-- **前缀匹配**：会话 id 支持唯一前缀；歧义时报错并列出全部候选，**不猜**。
-- **source:id 选择器**：跨源同前缀时用它消歧，例如 dsh:session-abc。
+- **会话 id 只在来源内唯一**：四个来源各是一套命名空间，不存在全局 id；`<source>:<id>` 才是完整身份。
+- **--session 必须带来源**：写成 `<source>:<id>`，或同时给 `--source <source>`。
+  裸 id 在 `--source` 未收敛到单一来源时直接退出码 2，**不跨来源扫描**——
+  否则同一条命令的结果会随"本机装了哪些产品、哪个库读得动"而变。
+- **前缀匹配**：前缀只在选中的来源内匹配；同源内命中多个会话时报错并列出候选，**不猜**。
 - **旧用法兼容**：sesscope -in x -out y、无参 + 管道输入都等价于 render；
   -db、-session、-limit 这类**单横线长参数**由兼容层自动改写成 -- 形式，并在 stderr 提示弃用一次。
 - **帮助输出**：子命令 --help 写 stdout（cobra 惯例）；只有参数错误时的"用法"写 stderr。

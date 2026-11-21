@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -211,9 +212,43 @@ func versionOfFile(path string) string {
 func sessionIDFromPath(path string) string {
 	base := filepath.Base(path)
 	if strings.HasPrefix(base, "session.v") {
-		return filepath.Base(filepath.Dir(path))
+		return decodeSessionDir(filepath.Base(filepath.Dir(path)))
 	}
-	return base
+	return decodeSessionDir(base)
+}
+
+// encodeSessionDir 与 dsh 的目录命名保持一致：不安全字符写成 ~XXXX（大写十六进制码点）。
+func encodeSessionDir(id string) string {
+	var builder strings.Builder
+	for _, r := range id {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_', r == '.':
+			builder.WriteRune(r)
+		default:
+			fmt.Fprintf(&builder, "~%04X", r)
+		}
+	}
+	return builder.String()
+}
+
+// decodeSessionDir 是 encodeSessionDir 的逆运算，用于从目录名还原真实会话 id。
+func decodeSessionDir(name string) string {
+	if !strings.Contains(name, "~") {
+		return name
+	}
+	var builder strings.Builder
+	for index := 0; index < len(name); {
+		if name[index] == '~' && index+4 < len(name) {
+			if code, err := strconv.ParseUint(name[index+1:index+5], 16, 32); err == nil {
+				builder.WriteRune(rune(code))
+				index += 5
+				continue
+			}
+		}
+		builder.WriteByte(name[index])
+		index++
+	}
+	return builder.String()
 }
 
 // Sessions 只读每个会话文件的第一行（头部），因此列 300 个会话也很快。
@@ -412,9 +447,19 @@ func locateSessionFile(store source.Store, ref session.Ref) (string, error) {
 		}
 		return "", fmt.Errorf("目录里没有会话文件：%s", store.Path)
 	}
-	matches, err := filepath.Glob(filepath.Join(store.Path, "*", ref.ID, "session.v*.jsonl*"))
-	if err != nil {
-		return "", err
+	// 目录名会把不安全字符转义成 ~XXXX（例如 IM 会话 id 里的 ':' → ~003A），
+	// 而 header 里的 id 是原文；两种写法都要试，否则这类会话永远打不开。
+	names := []string{ref.ID}
+	if encoded := encodeSessionDir(ref.ID); encoded != ref.ID {
+		names = append(names, encoded)
+	}
+	matches := make([]string, 0, 1)
+	for _, name := range names {
+		found, err := filepath.Glob(filepath.Join(store.Path, "*", name, "session.v*.jsonl*"))
+		if err != nil {
+			return "", err
+		}
+		matches = append(matches, found...)
 	}
 	if len(matches) == 0 {
 		return "", fmt.Errorf("%w：%s（在 %s 下没有找到会话目录）", source.ErrNotFound, ref.ID, store.Path)

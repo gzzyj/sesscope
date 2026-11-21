@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/gzzyj/sesscope/internal/session"
@@ -18,15 +19,16 @@ type toolRef struct {
 }
 
 type mapper struct {
-	out         *session.Session
-	opts        source.OpenOptions
-	stepMessage map[[2]int]int
-	stepStart   map[[2]int]int64
-	tools       map[string]toolRef
-	model       *session.ModelRef
-	currentTurn int
-	compaction  int
-	truncated   bool
+	out           *session.Session
+	opts          source.OpenOptions
+	stepMessage   map[[2]int]int
+	stepStart     map[[2]int]int64
+	tools         map[string]toolRef
+	model         *session.ModelRef
+	currentTurn   int
+	compaction    int
+	truncated     bool
+	emptyMessages int
 }
 
 // mapSession 流式读一个会话文件，映射成领域模型。
@@ -226,6 +228,9 @@ func (m *mapper) appendUserMessage(env envelope) {
 			continue
 		}
 		text := m.clip(block.Text)
+		if strings.TrimSpace(text) == "" {
+			continue // 空插入（如 agent/inbox/spliced 的重试标记）没有内容
+		}
 		parts = append(parts, session.Part{
 			ID:        data.ID + "#" + itoa(index),
 			Kind:      session.PartText,
@@ -235,6 +240,12 @@ func (m *mapper) appendUserMessage(env envelope) {
 			Text:      &text,
 			Synthetic: session.Bool(synthetic),
 		})
+	}
+	if len(parts) == 0 {
+		// 只有 source 标记、没有内容的消息（例如重试插入的空 user/message）不产生消息，
+		// 否则会变成一条没有部件的空消息。
+		m.emptyMessages++
+		return
 	}
 	message := session.Message{
 		ID:          data.ID,
@@ -466,6 +477,10 @@ func (m *mapper) appendSystemMessage(env envelope) {
 		return
 	}
 	text := m.clip(joinBlocks(data.Message.Content))
+	if strings.TrimSpace(text) == "" {
+		m.emptyMessages++
+		return
+	}
 	id := data.Message.ID
 	if id == "" {
 		id = "system-" + itoa(len(m.out.Messages))
@@ -535,6 +550,41 @@ func (m *mapper) finalize() {
 		messages = append(messages, message)
 	}
 	m.out.Messages = messages
+	openTools := 0
+	for index := range m.out.Messages {
+		for partIndex := range m.out.Messages[index].Parts {
+			part := &m.out.Messages[index].Parts[partIndex]
+			if part.Kind != session.PartToolCall || part.Tool == nil {
+				continue
+			}
+			if part.Tool.Status != nil && *part.Tool.Status != "" {
+				continue
+			}
+			// 文件结束前没有 tool/result：这条工具调用确实还没结束。
+			// 显式标 running，不要留空让下游猜。
+			running := string(session.StatusRunning)
+			part.Tool.Status = &running
+			openTools++
+		}
+	}
+	if openTools > 0 {
+		m.out.Diagnostics = append(m.out.Diagnostics, session.Diagnostic{
+			Level: "info", Code: "open-tools", Title: itoa(openTools) + " 个工具调用在文件结束时还没结果",
+			Detail: "这些工具没有 tool/result，状态标为 running、不给结束时间；会话可能仍在写入。",
+		})
+	}
+	if m.emptyMessages > 0 {
+		m.out.Diagnostics = append(m.out.Diagnostics, session.Diagnostic{
+			Level: "info", Code: "empty-messages", Title: itoa(m.emptyMessages) + " 条 user/message 没有内容，已跳过",
+			Detail: "典型是 agent/inbox/spliced 的空插入（重试/换向标记）；不产生没有部件的空消息。",
+		})
+	}
+	if len(messages) == 0 {
+		m.out.Diagnostics = append(m.out.Diagnostics, session.Diagnostic{
+			Level: "info", Code: "empty-session", Title: "这个会话文件里没有对话记录",
+			Detail: "只有 session/权限类记录；导出后消息为空，不是读取失败。",
+		})
+	}
 	if synthetic > 0 {
 		m.out.Diagnostics = append(m.out.Diagnostics, session.Diagnostic{
 			Level:  "info",

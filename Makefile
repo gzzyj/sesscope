@@ -5,7 +5,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || date +%Y%
 GO ?= go
 SESSION ?=
 
-.PHONY: all build fmt vet test lint verify golden demo list export sources doctor smoke clean
+.PHONY: all build fmt vet test lint verify golden demo list export sources doctor audit smoke clean
 
 all: build
 
@@ -27,6 +27,10 @@ test:
 
 ## verify: 全套检查（格式 + 静态 + 测试）
 verify: fmt vet test
+
+## audit: 字段门禁：检查抽象会话里该有却没有的字段（需本机有会话；有缺口时非 0 退出）
+audit: build
+	$(BINARY) audit -n $${AUDIT_LIMIT:-10}
 
 ## lint: 可选，装了 staticcheck 才跑
 lint:

@@ -296,11 +296,16 @@ func mapSession(ctx context.Context, path string, store source.Store, opts sourc
 	if opts.MaxTextBytes <= 0 {
 		opts.MaxTextBytes = 256 << 10
 	}
+	objectID := strings.TrimSuffix(filepath.Base(path), ".jsonl")
 	out := &session.Session{
-		Ref: session.Ref{Source: session.Claude, Store: store.Path, Object: path, ID: strings.TrimSuffix(filepath.Base(path), ".jsonl")},
-		Meta: session.Meta{Provenance: session.Provenance{
-			Source: session.Claude, Store: store.Path, Format: formatName, LoadedAt: time.Now().UnixMilli(), Complete: true,
-		}},
+		Ref: session.Ref{Source: session.Claude, Store: store.Path, Object: path, ID: objectID},
+		Meta: session.Meta{
+			// 文件名就是 claude 的会话 id；Meta 与 Ref 必须一致，否则导出后按 meta 查不到会话。
+			ID: session.Str(objectID),
+			Provenance: session.Provenance{
+				Source: session.Claude, Store: store.Path, Format: formatName, LoadedAt: time.Now().UnixMilli(), Complete: true,
+			},
+		},
 		Diagnostics: make([]session.Diagnostic, 0, 3),
 		Unknown:     map[string]int{},
 	}
@@ -332,6 +337,7 @@ type mapper struct {
 	tools         map[string]toolRef
 	lastAssistant int
 	turnIndex     int
+	firstMs       int64
 	truncated     bool
 	derivedStatus bool
 	sawThinking   bool
@@ -344,6 +350,7 @@ func (m *mapper) handle(number int, line []byte) error {
 		return nil
 	}
 	at, _ := parseISO(record.Timestamp)
+	m.observe(record, at)
 	switch record.Type {
 	case "user":
 		m.applyUser(record, at)
@@ -377,6 +384,22 @@ func (m *mapper) handle(number int, line []byte) error {
 	return nil
 }
 
+// observe 收集会话级元信息：起始时间、工作目录、版本。
+// 这些字段以前只在 Sessions() 的摘要里填，Open() 出来的会话是空的，导出就丢了。
+func (m *mapper) observe(record claudeRecord, at int64) {
+	if at > 0 && (m.firstMs == 0 || at < m.firstMs) {
+		m.firstMs = at
+	}
+	if record.Cwd != "" && (m.out.Meta.Directory == nil || *m.out.Meta.Directory == "") {
+		m.out.Meta.Directory = session.Str(record.Cwd)
+		m.out.Meta.WorkspaceKey = record.Cwd
+	}
+	if record.Version != "" && (m.out.Meta.Version == nil || *m.out.Meta.Version == "") {
+		m.out.Meta.Version = session.Str(record.Version)
+		m.out.Meta.Agent = session.Str("claude " + record.Version)
+	}
+}
+
 func (m *mapper) applyUser(record claudeRecord, at int64) {
 	message, blocks, err := decodeMessage(record.Message)
 	if err != nil {
@@ -403,6 +426,9 @@ func (m *mapper) applyUser(record claudeRecord, at int64) {
 	parts := make([]session.Part, 0, len(texts))
 	for index, block := range texts {
 		text := m.clip(block.Text)
+		if strings.TrimSpace(text) == "" {
+			continue
+		}
 		parts = append(parts, session.Part{
 			ID:        record.UUID + "#" + itoa(index),
 			Kind:      session.PartText,
@@ -444,6 +470,9 @@ func (m *mapper) applyAssistant(record claudeRecord, at int64) {
 		switch block.Type {
 		case "text":
 			text := m.clip(block.Text)
+			if strings.TrimSpace(text) == "" {
+				continue
+			}
 			parts = append(parts, session.Part{
 				ID: record.UUID + "#" + itoa(index), Kind: session.PartText, Type: "text",
 				CreatedMs: session.I64(at), UpdatedMs: session.I64(at),
@@ -498,8 +527,34 @@ func (m *mapper) applyAssistant(record claudeRecord, at int64) {
 			assistant.Error.Code = session.Str(record.Error)
 		}
 	}
+	if m.lastAssistant >= 0 {
+		m.closeOpenAssistant(m.lastAssistant)
+	}
 	m.out.Messages = append(m.out.Messages, assistant)
 	m.lastAssistant = len(m.out.Messages) - 1
+}
+
+// closeOpenAssistant 给上一条 assistant 补结束时间：它最后一个 part 的 end。
+// claude 只在 system{turn_duration} 写步骤结束；下一条 assistant 已经出现时，
+// 上一条实际上已经结束，用真实 part 时间收口，避免导出里留着"永远未完成"的步骤。
+func (m *mapper) closeOpenAssistant(index int) {
+	message := &m.out.Messages[index]
+	if message.CompletedMs != nil {
+		return
+	}
+	var end *int64
+	for position := range message.Parts {
+		part := message.Parts[position]
+		if part.EndMs != nil && (end == nil || *part.EndMs > *end) {
+			end = part.EndMs
+		}
+		if part.Tool != nil && part.Tool.EndMs != nil && (end == nil || *part.Tool.EndMs > *end) {
+			end = part.Tool.EndMs
+		}
+	}
+	if end != nil {
+		message.CompletedMs = end
+	}
 }
 
 func (m *mapper) applyToolResult(block claudeBlock, at int64) {
@@ -546,6 +601,15 @@ func (m *mapper) finalize() {
 		m.out.Diagnostics = append(m.out.Diagnostics, session.Diagnostic{
 			Level: "warn", Code: "truncated-text", Title: "文本/工具输出按上限截断",
 			Detail: "只保留前 " + itoa(m.opts.MaxTextBytes) + " 字节。",
+		})
+	}
+	if m.firstMs > 0 && m.out.Meta.CreatedMs == nil {
+		m.out.Meta.CreatedMs = session.I64(m.firstMs)
+	}
+	if len(m.out.Messages) == 0 {
+		m.out.Diagnostics = append(m.out.Diagnostics, session.Diagnostic{
+			Level: "info", Code: "empty-session", Title: "这个会话文件里没有对话记录",
+			Detail: "只有元信息/系统类记录；导出后消息为空，不是读取失败。",
 		})
 	}
 	if len(m.out.Messages) > 0 {
@@ -598,7 +662,14 @@ func isHuman(record claudeRecord) bool {
 		return record.Origin.Kind == "human"
 	}
 	if record.PromptSource != "" {
-		return record.PromptSource == "typed"
+		// typed = 终端手输；sdk = 通过 Claude Agent SDK / 外部调用发来的真实提示词。
+		// 两者都是人类意图；其余（auto/notification…）才是注入内容。
+		switch record.PromptSource {
+		case "typed", "sdk":
+			return true
+		default:
+			return false
+		}
 	}
 	return true
 }

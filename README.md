@@ -59,9 +59,9 @@ make build            # → out/sesscope（约 10 MB，UI 已内嵌）
 
 ```bash
 sesscope sources                        # 1. 有哪些来源、存储在哪、能不能读
-sesscope sessions --limit 20            # 2. 跨来源列会话（拿到 id）
-sesscope export --session <id> --html trace.html   # 3. 导出 + 出页面
-sesscope analyze --session <id>         # 4. 确定性归因
+sesscope sessions --limit 20            # 2. 跨来源列会话（拿到 source:id）
+sesscope export --session dsh:session-59b8… --html trace.html   # 3. 导出 + 出页面
+sesscope analyze --session dsh:session-59b8…                    # 4. 确定性归因
 ```
 
 真实输出（`sources`，本机）：
@@ -103,9 +103,13 @@ claude    ok           claude/jsonl:jsonl     ~/.claude/projects                
 | 分析 | `analyze` | 事件链 + 补偿链 + 证据；`--in` 读导出 JSON，`--session` 直连来源 |
 | 渲染 | `render` | 导出 JSON（新旧格式都认）→ 自包含 HTML |
 | 元 | `version` / `help` | 版本 + 各源能力摘要 / 帮助 |
+| 元 | `audit` | 字段门禁：抽象会话里该有却没有的字段，按来源+字段聚合；有缺口退出码 1 |
 
-约定：会话 id 支持前缀，跨来源歧义时列候选并退出码 2（**不猜**）；
-`--session dsh:session-abc` 可显式指定来源；退出码 `0` 成功 / `1` 运行期 / `2` 输入问题 / `3` 来源或格式不支持。
+约定：**会话 id 只在所属来源内唯一**（opencode 的 `ses_…`、dsh 的 `session-<uuid>`、
+codex/claude 的 uuid 是四套独立命名空间），所以 `--session` 必须带来源：
+写成 `dsh:session-abc`，或同时给 `--source dsh`；裸 id 直接退出码 2，**不跨来源猜**。
+id 支持前缀，同一来源内前缀命中多个时列候选并退出码 2。
+退出码 `0` 成功 / `1` 运行期 / `2` 输入问题 / `3` 来源或格式不支持。
 
 完整契约见 [docs/cli.md](docs/cli.md)。
 

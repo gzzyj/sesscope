@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/klauspost/compress/zstd"
@@ -170,5 +171,19 @@ func TestSessionsAndOpen(t *testing.T) {
 	}
 	if opened.Meta.Provenance.Source != session.DSH {
 		t.Fatalf("provenance = %+v", opened.Meta.Provenance)
+	}
+}
+
+func TestSessionDirEncodingRoundTrip(t *testing.T) {
+	id := "im:weixin_1133e0f7429a:dm:1793012581400:o9cq807cYicXpYFhuI9tfjD5T3fk@im.wechat"
+	encoded := encodeSessionDir(id)
+	if encoded == id || strings.ContainsAny(encoded, ":@") {
+		t.Fatalf("encodeSessionDir(%q) = %q", id, encoded)
+	}
+	if decoded := decodeSessionDir(encoded); decoded != id {
+		t.Fatalf("decodeSessionDir(%q) = %q，期望 %q", encoded, decoded, id)
+	}
+	if plain := encodeSessionDir("session-59b8-1a2b"); plain != "session-59b8-1a2b" {
+		t.Fatalf("普通 id 不该被改写：%q", plain)
 	}
 }

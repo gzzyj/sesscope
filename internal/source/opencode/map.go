@@ -126,6 +126,28 @@ func mapDetail(detail *SessionDetail, store source.Store, opts source.OpenOption
 	if declaredToolMs > 0 {
 		out.Declared.TotalToolDurationMs = session.I64(declaredToolMs)
 	}
+	// 被下一次用户输入打断的 assistant 调用，opencode 不写 time.completed；
+	// 但它后面已经有新消息，说明这次调用已经结束——用最后一个 part 的 end 收口，
+	// 避免导出里留下"永远未完成"的步骤（正在写的最后一条不动）。
+	for index := 0; index < len(out.Messages)-1; index++ {
+		message := &out.Messages[index]
+		if message.Role != session.RoleAssistant || message.CompletedMs != nil {
+			continue
+		}
+		var end *int64
+		for position := range message.Parts {
+			part := message.Parts[position]
+			if part.EndMs != nil && (end == nil || *part.EndMs > *end) {
+				end = part.EndMs
+			}
+			if part.Tool != nil && part.Tool.EndMs != nil && (end == nil || *part.Tool.EndMs > *end) {
+				end = part.Tool.EndMs
+			}
+		}
+		if end != nil {
+			message.CompletedMs = end
+		}
+	}
 	if truncated {
 		out.Diagnostics = append(out.Diagnostics, session.Diagnostic{
 			Level:  "warn",

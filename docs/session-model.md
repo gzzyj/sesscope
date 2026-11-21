@@ -30,6 +30,12 @@
 | Diagnostics | 显式降级清单 | 至少 0 条 |
 | Unknown | 未注册的原生记录/事件类型 → 次数（版本漂移信号） | 可空 |
 
+**id 是源内 id，不是全局 id。** ID 直接取自各产品自己的命名空间（opencode 的会话主键 `ses_…`、
+dsh 的 `session-<uuid>` 目录名、codex 的 rollout 文件名与记录里的 `session_id`、claude 的 `<uuid>.jsonl`）。
+四套命名空间既不保证互不重复，也不保证跨版本稳定，所以**身份是 `Ref{Source, Store, ID}`**：
+调用方必须先在来源内定位，再按 ID 解析。CLI 侧对应 `--session <source>:<id>` 或 `--session <id> --source <source>`；
+裸 id 不做跨源匹配（否则解析结果会随"本机装了哪些产品、哪个库读得动"而变）。
+
 ### 消息与部件
 
 | 字段 | 含义 |
@@ -38,6 +44,7 @@
 | Message.PayloadRole | 载荷里的角色：步骤展示用（opencode 的 data.role） |
 | Message.CreatedMs / UpdatedMs / CompletedMs | 落库时间 / 更新时间 / 真正结束时间 |
 | Message.TurnHint{Turn, Step, TurnID} | 源自带的轮次编号（dsh、codex、claude 有；opencode 没有） |
+| Message.ModelSpans | 源显式记录的模型活动区间，可以没有文本（codex 加密思考）；页面按段画模型条 | 空 = 由 reasoning/text part 时间推导 |
 | Message.Error{Name, Message, Detail, Code, StatusCode, Retryable} | 步骤级错误 |
 | Message.Tokens{Total, Input, Output, Reasoning, CacheRead, CacheWrite} | 每步用量 |
 | Part.Kind | text / reasoning / tool-call / tool-result / compaction / file / step-start / step-finish / other |
