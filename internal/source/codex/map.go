@@ -437,15 +437,7 @@ func (m *mapper) closeOpenAssistant(index int) {
 }
 
 func (m *mapper) applyReasoning(item responseItem, at int64) {
-	text := ""
-	for _, block := range item.Summary {
-		if block.Text != "" {
-			if text != "" {
-				text += string(rune(10))
-			}
-			text += block.Text
-		}
-	}
+	text := reasoningText(item)
 	if text == "" {
 		if item.EncryptedContent != "" {
 			m.encryptedSeen = true
@@ -463,6 +455,34 @@ func (m *mapper) applyReasoning(item responseItem, at int64) {
 		Text:      session.Str(m.clip(text)),
 	}
 	m.appendToLastAssistant(part)
+}
+
+// reasoningText 取思考正文。codex 把思考存在两个地方：
+//   - summary[]：OpenAI 的"摘要"字段（可能被服务端压缩/省略）；
+//   - content[]（type=reasoning_text）：原始思考正文，经代理接入的 DeepSeek 等
+//     只写这里，summary 为空。
+//
+// 以前只读 summary，导致这类会话的思考全被丢弃（页面上只剩"仅思考"一行）。
+// 优先用 content（完整正文），没有再退回 summary。
+func reasoningText(item responseItem) string {
+	var builder strings.Builder
+	appendBlocks := func(blocks []contentItem) {
+		for _, block := range blocks {
+			text := strings.TrimSpace(block.Text)
+			if text == "" {
+				continue
+			}
+			if builder.Len() > 0 {
+				builder.WriteString(string(rune(10)))
+			}
+			builder.WriteString(text)
+		}
+	}
+	appendBlocks(item.Content)
+	if builder.Len() == 0 {
+		appendBlocks(item.Summary)
+	}
+	return builder.String()
 }
 
 func (m *mapper) applyToolCall(item responseItem, at int64) {

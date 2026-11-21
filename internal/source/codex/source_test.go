@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/klauspost/compress/zstd"
@@ -213,6 +214,58 @@ func TestRolloutMapping(t *testing.T) {
 	for _, want := range []string{"encrypted-reasoning", "derived-tool-status"} {
 		if !codes[want] {
 			t.Errorf("缺少诊断 %q：%+v", want, opened.Diagnostics)
+		}
+	}
+}
+
+// TestRolloutReasoningFromContent：经代理接入的模型（如 DeepSeek）把思考写在
+// response_item.content[type=reasoning_text]，summary 为空；必须照样落成思考部件。
+func TestRolloutReasoningFromContent(t *testing.T) {
+	stamp := "2026-09-22T10:00:00.000Z"
+	records := []map[string]any{
+		{"timestamp": stamp, "type": "session_meta", "payload": map[string]any{
+			"session_id": "01a0c89f-3c06-73c3-aae8-e6de46100531", "cwd": "/work/demo", "timestamp": stamp,
+		}},
+		{"timestamp": stamp, "type": "turn_context", "payload": map[string]any{"turn_id": "turn-1"}},
+		{"timestamp": stamp, "type": "event_msg", "payload": map[string]any{"type": "task_started", "turn_id": "turn-1"}},
+		{"timestamp": stamp, "type": "event_msg", "payload": map[string]any{
+			"type": "item_completed", "turn_id": "turn-1", "started_at_ms": 1000, "completed_at_ms": 1000,
+			"item": map[string]any{"type": "UserMessage", "id": "u1", "content": []any{map[string]any{"type": "text", "text": "跑一下"}}},
+		}},
+		{"timestamp": stamp, "type": "response_item", "payload": map[string]any{"type": "message", "id": "a1", "role": "assistant",
+			"content": []any{map[string]any{"type": "output_text", "text": "好的"}}}},
+		{"timestamp": stamp, "type": "response_item", "payload": map[string]any{
+			"type": "reasoning", "id": "r1", "summary": []any{},
+			"content": []any{map[string]any{"type": "reasoning_text", "text": "先想一下\n再回答"}},
+		}},
+	}
+	store := writeRollout(t, records)
+	summaries, err := New().Sessions(context.Background(), store, source.Query{})
+	if err != nil {
+		t.Fatalf("列会话：%v", err)
+	}
+	opened, err := New().Open(context.Background(), store, summaries[0].Ref, source.OpenOptions{})
+	if err != nil {
+		t.Fatalf("取会话：%v", err)
+	}
+	var reasoning *session.Part
+	for index := range opened.Messages {
+		for partIndex := range opened.Messages[index].Parts {
+			part := &opened.Messages[index].Parts[partIndex]
+			if part.Kind == session.PartReasoning {
+				reasoning = part
+			}
+		}
+	}
+	if reasoning == nil || reasoning.Text == nil {
+		t.Fatalf("没有解析出思考部件：%+v", opened.Messages)
+	}
+	if !strings.Contains(*reasoning.Text, "先想一下") {
+		t.Errorf("思考文本 = %q", *reasoning.Text)
+	}
+	for _, diagnostic := range opened.Diagnostics {
+		if diagnostic.Code == "encrypted-reasoning" {
+			t.Errorf("有正文时不该报 encrypted-reasoning：%+v", diagnostic)
 		}
 	}
 }
