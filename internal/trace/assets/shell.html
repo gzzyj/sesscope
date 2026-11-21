@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>opencode 轨迹 · 耗时总览</title>
+<style>/*__TRACE_CSS__*/</style>
+</head>
+<body>
+<header class="appbar">
+  <div class="appbar-main">
+    <span class="view-title">轨迹</span>
+    <span class="appbar-sep"></span>
+    <span class="session-title" id="sessionTitle">opencode 会话</span>
+  </div>
+  <div class="appbar-meta" id="appbarMeta"></div>
+</header>
+
+<div class="toolbar">
+  <div class="seg" role="group" aria-label="时间轴口径">
+    <button type="button" class="seg-btn" data-gap="60000">空闲折叠 &gt; 60s</button>
+    <button type="button" class="seg-btn" data-gap="10000">空闲折叠 &gt; 10s</button>
+    <button type="button" class="seg-btn" data-gap="0">实际时间</button>
+  </div>
+  <button type="button" class="tool-btn" id="fitAll" title="时间轴复位到全量（Esc 也可清除框选）">适配全部</button>
+  <button type="button" class="tool-btn" id="expandAll">展开轮次</button>
+  <button type="button" class="tool-btn" id="collapseAll">收起轮次</button>
+  <label class="search">
+    <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.5"></circle>
+      <path d="m10.6 10.6 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+    </svg>
+    <input id="search" type="search" placeholder="搜索轨迹（工具名 / 命令 / 输出 / 思考）" autocomplete="off">
+  </label>
+  <button type="button" class="tool-btn icon" id="themeToggle" title="切换明暗">☾</button>
+</div>
+
+<div class="overview-strip" id="overviewStrip"></div>
+
+<section class="timeline" aria-label="轨迹时间线">
+  <div class="plot">
+    <div class="lane-labels" aria-hidden="true">
+      <span>输入</span><span>模型</span><span>工具</span>
+    </div>
+    <div class="track" id="track" tabindex="0" aria-label="时间线概览：点击选中记录，水平拖动框选区间，滚轮缩放，双击复位">
+      <div class="lanes" id="lanes"></div>
+      <div class="boundaries" id="boundaries"></div>
+      <div class="selection" id="selection" hidden></div>
+      <div class="hover-line" id="hoverLine" hidden></div>
+    </div>
+  </div>
+  <div class="axis">
+    <div class="axis-spacer"></div>
+    <div class="axis-labels" id="axis"></div>
+  </div>
+  <div class="tooltip" id="timelineTooltip" hidden></div>
+</section>
+
+<main class="split">
+  <div class="table-pane" id="tablePane">
+    <table class="ledger">
+      <thead>
+        <tr>
+          <th class="col-event">事件</th>
+          <th class="col-content">内容</th>
+          <th class="col-time">时长</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <aside class="inspector" id="inspector" aria-label="事件详情"></aside>
+</main>
+
+<script type="application/json" id="trace-data">__TRACE_DATA__</script>
+<script>/*__TRACE_JS__*/</script>
+</body>
+</html>

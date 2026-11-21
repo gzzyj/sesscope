@@ -1,0 +1,56 @@
+# opencode-trace —— opencode 会话库 → 导出 JSON → DSH 轨迹风格耗时 HTML
+
+BINARY := out/opencode-trace
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || date +%Y%m%d-%H%M%S)
+GO ?= go
+SESSION ?=
+
+.PHONY: all build fmt vet test lint verify golden demo list export clean
+
+all: build
+
+## build: 编译单文件二进制（内嵌 UI 资源）
+build:
+	$(GO) build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o $(BINARY) .
+
+## fmt: 格式检查（有未格式化文件就失败）
+fmt:
+	@out=$$(gofmt -l . | grep -v '^out/'); if [ -n "$$out" ]; then echo "需要 gofmt："; echo "$$out"; exit 1; fi
+
+## vet: 静态检查
+vet:
+	$(GO) vet ./...
+
+## test: 单元测试 + 黄金用例
+test:
+	$(GO) test ./...
+
+## verify: 全套检查（格式 + 静态 + 测试）
+verify: fmt vet test
+
+## lint: 可选，装了 staticcheck 才跑
+lint:
+	@command -v staticcheck >/dev/null 2>&1 && staticcheck ./... || echo "跳过：没有 staticcheck"
+
+## golden: 用真实导出重写黄金用例（只在确认改动符合预期时用）
+golden:
+	$(GO) test ./internal/trace -run TestGoldenParity -update
+
+## list: 列出本机工作区与会话
+list: build
+	$(BINARY) workspaces
+	@echo
+	$(BINARY) sessions -limit 10
+
+## export: 导出并渲染某个会话（make export SESSION=ses_xxx）
+export: build
+	@test -n "$(SESSION)" || (echo "用法：make export SESSION=ses_xxx（先用 make list 看 id）"; exit 2)
+	$(BINARY) export -session "$(SESSION)" -out out/demo/session-export.json -html out/demo/trace.html
+
+## demo: 用本机最近活跃的会话走一遍完整链路
+demo: build
+	@set -e; id=$$($(BINARY) sessions -limit 1 -json 2>/dev/null | sed -n 's/.*"id": "\(ses_[^"]*\)".*/\1/p' | head -1); \
+	  echo "会话：$$id"; $(BINARY) export -session "$$id" -out out/demo/session-export.json -html out/demo/trace.html
+
+clean:
+	rm -rf out
