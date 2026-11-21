@@ -228,7 +228,7 @@ func chainOutcome(entries []stepEntry) string {
 		for toolIndex := range entry.step.Tools {
 			tool := &entry.step.Tools[toolIndex]
 			failed := tool.Status == "error" || hasMojibake(tool.OutputText)
-			if tool.Name == "bash" || tool.Name == "sh" || tool.Name == "exec" {
+			if toolKindOf(tool) == "shell" {
 				if failed {
 					lastFailure = entry.step.Index
 					failures++

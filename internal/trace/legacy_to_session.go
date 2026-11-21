@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/zhouyuejie/opencode-trace/internal/session"
+	"github.com/zhouyuejie/opencode-trace/internal/session/toolsem"
 )
 
 // ExportToSession 把 opencode 导出文档（旧口径）映射成源无关的领域模型。
@@ -166,6 +167,11 @@ func exportPart(part Part) session.Part {
 			call.StartMs = state.Time.Start
 			call.EndMs = state.Time.End
 		}
+		name := ""
+		if call.Name != nil {
+			name = *call.Name
+		}
+		call.Kind, call.Target, call.Command = toolsem.Classify(session.Opencode, name, call.Args)
 		out.Tool = call
 	}
 	return out

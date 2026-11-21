@@ -91,7 +91,7 @@ func Analyze(data *trace.Data) []trace.Episode {
 				episodes = append(episodes, pathProbeEpisode(flat, position, entry, tool))
 			case authPattern.MatchString(errorText):
 				episodes = append(episodes, authEpisode(flat, position, entry, tool))
-			case tool.Name == "edit" && strings.Contains(strings.ToLower(errorText), "oldstring"):
+			case toolKindOf(tool) == "edit" && strings.Contains(strings.ToLower(errorText), "oldstring"):
 				episodes = append(episodes, editMismatchEpisode(flat, position, entry, tool))
 			default:
 				if !covered[coverageKey(entry.step.TurnIndex, entry.step.Index, derefInt64(tool.StartMs))] {
@@ -191,7 +191,7 @@ func truncatedEpisode(flat []stepEntry, position int, entry stepEntry, tool *tra
 	for offset := position + 1; offset < len(flat) && offset <= position+6; offset++ {
 		for toolIndex := range flat[offset].step.Tools {
 			later := &flat[offset].step.Tools[toolIndex]
-			if later.Name != "read" && later.Name != "bash" {
+			if toolKindOf(later) != "read" && toolKindOf(later) != "shell" {
 				continue
 			}
 			if target != "" && strings.Contains(toolTarget(later), baseName(target)) {
@@ -227,7 +227,7 @@ func pathProbeEpisode(flat []stepEntry, position int, entry stepEntry, tool *tra
 	for offset := position + 1; offset < len(flat) && offset <= position+5; offset++ {
 		for toolIndex := range flat[offset].step.Tools {
 			later := &flat[offset].step.Tools[toolIndex]
-			if later.Name == tool.Name && toolTarget(later) == target {
+			if sameTarget(later, tool) && toolTarget(later) == target {
 				continue
 			}
 			response = append(response, fmt.Sprintf("第 %d 轮第 %d 步 %s(%s)", flat[offset].step.TurnIndex, flat[offset].step.Index, later.Name, oneLine(toolTarget(later), 40)))
@@ -261,7 +261,7 @@ func authEpisode(flat []stepEntry, position int, entry stepEntry, tool *trace.To
 	for offset := position + 1; offset < len(flat) && offset <= position+4; offset++ {
 		for toolIndex := range flat[offset].step.Tools {
 			later := &flat[offset].step.Tools[toolIndex]
-			if later.Name == "read" && sourceFile.MatchString(toolTarget(later)) {
+			if toolKindOf(later) == "read" && sourceFile.MatchString(toolTarget(later)) {
 				readSource = true
 				response = append(response, fmt.Sprintf("第 %d 轮第 %d 步 read %s", flat[offset].step.TurnIndex, flat[offset].step.Index, oneLine(toolTarget(later), 50)))
 				if spanEnd := derefInt64(later.EndMs); spanEnd > end {
@@ -299,7 +299,7 @@ func editMismatchEpisode(flat []stepEntry, position int, entry stepEntry, tool *
 	for offset := position + 1; offset < len(flat) && offset <= position+3; offset++ {
 		for toolIndex := range flat[offset].step.Tools {
 			later := &flat[offset].step.Tools[toolIndex]
-			if later.Name == "read" && strings.Contains(toolTarget(later), baseName(target)) {
+			if toolKindOf(later) == "read" && strings.Contains(toolTarget(later), baseName(target)) {
 				response = append(response, fmt.Sprintf("第 %d 轮第 %d 步 read 重读", flat[offset].step.TurnIndex, flat[offset].step.Index))
 				if spanEnd := derefInt64(later.EndMs); spanEnd > end {
 					end = spanEnd
@@ -341,6 +341,33 @@ func plainToolErrorEpisode(entry stepEntry, tool *trace.Tool) trace.Episode {
 }
 
 // retryEpisodes：同一 (工具, 目标) 连续失败 >=2 次，是"服务/锁/网络"最硬的证据。
+// toolKindOf 取工具语义类别；旧数据没有 Kind 时回退到工具名，保证向后兼容。
+func toolKindOf(tool *trace.Tool) string {
+	if tool.Kind != "" {
+		return tool.Kind
+	}
+	switch tool.Name {
+	case "bash", "sh", "exec":
+		return "shell"
+	case "read":
+		return "read"
+	case "write":
+		return "write"
+	case "edit":
+		return "edit"
+	case "grep", "glob":
+		return "search"
+	case "question":
+		return "ask"
+	}
+	return "other"
+}
+
+// sameTarget 判断两次工具调用是不是"同一个对象"（重试识别用）。
+func sameTarget(left, right *trace.Tool) bool {
+	return toolKindOf(left) == toolKindOf(right) && toolTarget(left) == toolTarget(right)
+}
+
 // coverageKey 标记"这条失败已经被别的事件链吃掉了"。
 func coverageKey(turn, step int, toolStartMs int64) string {
 	return fmt.Sprintf("%d|%d|%d", turn, step, toolStartMs)
@@ -371,7 +398,7 @@ func retryEpisodes(flat []stepEntry) ([]trace.Episode, map[string]bool) {
 		for offset := position + 1; offset < len(flat) && offset <= position+8; offset++ {
 			for toolIndex := range flat[offset].step.Tools {
 				tool := &flat[offset].step.Tools[toolIndex]
-				if tool.Name == current.Name && toolTarget(tool) == target && tool.Status == "error" {
+				if sameTarget(tool, current) && toolTarget(tool) == target && tool.Status == "error" {
 					attempts++
 					lastPosition = offset
 					lastTool = tool
@@ -383,7 +410,7 @@ func retryEpisodes(flat []stepEntry) ([]trace.Episode, map[string]bool) {
 			for offset := position + 1; offset <= lastPosition; offset++ {
 				for toolIndex := range flat[offset].step.Tools {
 					tool := &flat[offset].step.Tools[toolIndex]
-					if tool.Name == current.Name && toolTarget(tool) == target && tool.Status == "error" {
+					if sameTarget(tool, current) && toolTarget(tool) == target && tool.Status == "error" {
 						covered[coverageKey(flat[offset].step.TurnIndex, flat[offset].step.Index, derefInt64(tool.StartMs))] = true
 					}
 				}
@@ -504,6 +531,9 @@ func hasMojibake(text string) bool {
 }
 
 func toolCommand(tool *trace.Tool) string {
+	if tool.Command != "" {
+		return tool.Command
+	}
 	args := decodeArgs(tool.ArgsText)
 	if command, ok := args["command"].(string); ok {
 		return command
@@ -515,6 +545,9 @@ func toolCommand(tool *trace.Tool) string {
 }
 
 func toolTarget(tool *trace.Tool) string {
+	if tool.Target != "" {
+		return tool.Target
+	}
 	args := decodeArgs(tool.ArgsText)
 	for _, key := range []string{"filePath", "path", "file"} {
 		if value, ok := args[key].(string); ok && value != "" {

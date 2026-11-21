@@ -5,6 +5,9 @@ package all
 
 import (
 	"github.com/zhouyuejie/opencode-trace/internal/source"
+	"github.com/zhouyuejie/opencode-trace/internal/source/claude"
+	"github.com/zhouyuejie/opencode-trace/internal/source/codex"
+	"github.com/zhouyuejie/opencode-trace/internal/source/dsh"
 	"github.com/zhouyuejie/opencode-trace/internal/source/opencode"
 )
 
@@ -12,5 +15,8 @@ import (
 func Sources() []source.Source {
 	return []source.Source{
 		opencode.New(),
+		dsh.New(),
+		codex.New(),
+		claude.New(),
 	}
 }

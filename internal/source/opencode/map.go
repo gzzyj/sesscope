@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/zhouyuejie/opencode-trace/internal/session"
+	"github.com/zhouyuejie/opencode-trace/internal/session/toolsem"
 	"github.com/zhouyuejie/opencode-trace/internal/source"
 )
 
@@ -242,10 +243,13 @@ func mapPart(row PartRow, opts source.OpenOptions, truncated *bool) (session.Par
 	}
 	toolMs := int64(0)
 	if state := data.State; state != nil {
+		name := ""
+		if data.Tool != nil {
+			name = *data.Tool
+		}
 		call := &session.ToolCall{
 			CallID: data.CallID,
 			Name:   data.Tool,
-			Kind:   toolKind(*data.CallID, data.Tool, rawType),
 			Args:   state.Input,
 			Output: state.Output,
 			Error:  state.Error,
@@ -259,6 +263,7 @@ func mapPart(row PartRow, opts source.OpenOptions, truncated *bool) (session.Par
 			call.StartMs = state.Time.Start
 			call.EndMs = state.Time.End
 		}
+		call.Kind, call.Target, call.Command = toolsem.Classify(session.Opencode, name, state.Input)
 		out.Tool = call
 		// 与旧导出 GlobalStats.total_tool_duration_ms 同口径：
 		// state.time 优先，缺失时退回 part 的创建/更新时间。
@@ -294,33 +299,6 @@ func partKind(raw string) session.PartKind {
 		return session.PartStepFinish
 	default:
 		return session.PartOther
-	}
-}
-
-// toolKind 在适配器里先给出"来自产品名"的粗分类；
-// 跨源统一的语义分类由 internal/session/toolsem 负责（P3 接入）。
-func toolKind(_ string, name *string, rawType string) session.ToolKind {
-	if rawType != "tool" {
-		return session.ToolOther
-	}
-	if name == nil {
-		return session.ToolOther
-	}
-	switch strings.ToLower(*name) {
-	case "bash", "sh", "exec", "run_code":
-		return session.ToolShell
-	case "read":
-		return session.ToolRead
-	case "write":
-		return session.ToolWrite
-	case "edit":
-		return session.ToolEdit
-	case "grep", "glob", "search":
-		return session.ToolSearch
-	case "question":
-		return session.ToolAsk
-	default:
-		return session.ToolOther
 	}
 }
 

@@ -182,6 +182,9 @@ type Tool struct {
 	EndMs      *int64  `json:"endMs"`
 	DurationMs *int64  `json:"durationMs"`
 	WaitHuman  bool    `json:"waitHuman"`
+	Kind       string  `json:"kind"`
+	Target     string  `json:"target"`
+	Command    string  `json:"command"`
 	ArgsText   string  `json:"argsText"`
 	OutputText string  `json:"outputText"`
 	ErrorText  *string `json:"errorText"`
@@ -867,11 +870,14 @@ func normalizeTool(part session.Part) Tool {
 			tool.ErrorText = &text
 		}
 		tool.Title = call.Title
+		tool.Kind = string(call.Kind)
+		tool.Target = call.Target
+		tool.Command = call.Command
 	}
 	if tool.CallID == "" {
 		tool.CallID = part.ID
 	}
-	tool.WaitHuman = tool.Name == "question"
+	tool.WaitHuman = tool.Name == "question" || tool.Kind == string(session.ToolAsk)
 	if tool.StartMs != nil && tool.EndMs != nil {
 		tool.DurationMs = int64Ptr(*tool.EndMs - *tool.StartMs)
 	}

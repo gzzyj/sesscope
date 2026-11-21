@@ -151,6 +151,8 @@ type ToolCall struct {
 	Output  []byte   `json:"output,omitempty"`
 	Error   []byte   `json:"error,omitempty"`
 	Title   *string  `json:"title,omitempty"`
+	Target  string   `json:"target,omitempty"`
+	Command string   `json:"command,omitempty"`
 	StartMs *int64   `json:"start_ms,omitempty"`
 	EndMs   *int64   `json:"end_ms,omitempty"`
 }
@@ -174,6 +176,13 @@ type Part struct {
 	Tool       *ToolCall `json:"tool,omitempty"`
 }
 
+// TurnHint 是源自带的轮次/步骤编号（有的产品有，有的只能派生）。
+type TurnHint struct {
+	Turn   int    `json:"turn,omitempty"`
+	Step   int    `json:"step,omitempty"`
+	TurnID string `json:"turn_id,omitempty"`
+}
+
 // Message 是一条消息（用户输入 / 模型输出 / 工具结果 / 系统注入）。
 type Message struct {
 	ID          string    `json:"id"`
@@ -182,6 +191,7 @@ type Message struct {
 	CreatedMs   *int64    `json:"created_ms,omitempty"`
 	UpdatedMs   *int64    `json:"updated_ms,omitempty"`
 	CompletedMs *int64    `json:"completed_ms,omitempty"`
+	TurnHint    TurnHint  `json:"turn_hint,omitempty"`
 	Model       *ModelRef `json:"model,omitempty"`
 	Finish      *string   `json:"finish,omitempty"`
 	Error       *Error    `json:"error,omitempty"`
