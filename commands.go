@@ -14,7 +14,7 @@ import (
 
 	"github.com/zhouyuejie/opencode-trace/internal/attribution"
 	"github.com/zhouyuejie/opencode-trace/internal/deepworks"
-	"github.com/zhouyuejie/opencode-trace/internal/opencode"
+	"github.com/zhouyuejie/opencode-trace/internal/source/opencode"
 	"github.com/zhouyuejie/opencode-trace/internal/table"
 	"github.com/zhouyuejie/opencode-trace/internal/trace"
 )

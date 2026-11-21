@@ -60,8 +60,9 @@ func Discover(explicit string) (string, error) {
 	return "", fmt.Errorf("找不到 opencode 会话库，试过：\n  %s\n用 -db 指定，或设置环境变量 OPENCODE_TRACE_DB", strings.Join(tried, "\n  "))
 }
 
-// Open 以只读方式打开库（不会改动机器上的数据）。
-func Open(path string) (*DB, error) {
+// OpenReadOnly 以只读方式打开任意 SQLite 文件，不做 opencode schema 校验。
+// 供"探测版本/体检"使用：新版 schema 也要能打开，才能如实报告"不支持"而不是"打不开"。
+func OpenReadOnly(path string) (*sql.DB, error) {
 	dsn := "file:" + url.PathEscape(path) + "?mode=ro&_pragma=busy_timeout(5000)"
 	conn, err := sql.Open("sqlite", dsn)
 	if err != nil {
@@ -69,6 +70,15 @@ func Open(path string) (*DB, error) {
 	}
 	// 只读库不需要连接池；限制为 1 让行为可预期（含 WAL 读取）。
 	conn.SetMaxOpenConns(1)
+	return conn, nil
+}
+
+// Open 以只读方式打开库（不会改动机器上的数据）。
+func Open(path string) (*DB, error) {
+	conn, err := OpenReadOnly(path)
+	if err != nil {
+		return nil, err
+	}
 	database := &DB{conn: conn, Path: path}
 	if err := database.checkSchema(); err != nil {
 		conn.Close()

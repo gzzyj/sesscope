@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zhouyuejie/opencode-trace/internal/opencode"
+	"github.com/zhouyuejie/opencode-trace/internal/source/opencode"
 	"github.com/zhouyuejie/opencode-trace/internal/table"
 )
 
