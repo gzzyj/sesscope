@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/zhouyuejie/opencode-trace/internal/trace"
+	"github.com/gzzyj/atrace/internal/trace"
 )
 
 // 补偿链：一次故障引发的连续补救。事件链（Episode）回答"哪里坏了"，

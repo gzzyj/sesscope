@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/zhouyuejie/opencode-trace/internal/session"
+	"github.com/gzzyj/atrace/internal/session"
 )
 
 func loadGoldenExport(t *testing.T) *Export {

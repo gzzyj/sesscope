@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zhouyuejie/opencode-trace/internal/session"
-	"github.com/zhouyuejie/opencode-trace/internal/source"
-	"github.com/zhouyuejie/opencode-trace/internal/source/jsonl"
+	"github.com/gzzyj/atrace/internal/session"
+	"github.com/gzzyj/atrace/internal/source"
+	"github.com/gzzyj/atrace/internal/source/jsonl"
 )
 
 const formatName = "codex/rollout"

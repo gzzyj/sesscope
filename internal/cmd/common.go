@@ -9,10 +9,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/zhouyuejie/opencode-trace/internal/app"
-	"github.com/zhouyuejie/opencode-trace/internal/cli"
-	"github.com/zhouyuejie/opencode-trace/internal/session"
-	"github.com/zhouyuejie/opencode-trace/internal/source"
+	"github.com/gzzyj/atrace/internal/app"
+	"github.com/gzzyj/atrace/internal/cli"
+	"github.com/gzzyj/atrace/internal/session"
+	"github.com/gzzyj/atrace/internal/source"
 )
 
 // sourceOptions 是"选源 + 定位存储"的公共参数组。

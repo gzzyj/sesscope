@@ -10,8 +10,8 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 
-	"github.com/zhouyuejie/opencode-trace/internal/session"
-	"github.com/zhouyuejie/opencode-trace/internal/source"
+	"github.com/gzzyj/atrace/internal/session"
+	"github.com/gzzyj/atrace/internal/source"
 )
 
 func writeRollout(t *testing.T, records []map[string]any) source.Store {

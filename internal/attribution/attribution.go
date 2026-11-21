@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/zhouyuejie/opencode-trace/internal/trace"
+	"github.com/gzzyj/atrace/internal/trace"
 )
 
 // 原因代码（稳定标识，页面按它上色/聚合）。

@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/zhouyuejie/opencode-trace/internal/app"
-	"github.com/zhouyuejie/opencode-trace/internal/cli"
-	"github.com/zhouyuejie/opencode-trace/internal/source"
+	"github.com/gzzyj/atrace/internal/app"
+	"github.com/gzzyj/atrace/internal/cli"
+	"github.com/gzzyj/atrace/internal/source"
 )
 
 func newVersionCommand(version string, env *app.Env) *cobra.Command {
@@ -19,7 +19,7 @@ func newVersionCommand(version string, env *app.Env) *cobra.Command {
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !outputOpts.asJSON {
-				fmt.Fprintf(cmd.OutOrStdout(), "opencode-trace %s"+NL, version)
+				fmt.Fprintf(cmd.OutOrStdout(), "atrace %s"+NL, version)
 				for _, item := range env.Registry.All() {
 					fmt.Fprintf(cmd.OutOrStdout(), "  %-10s %s"+NL, item.ID(), describeCapabilities(item.Capabilities()))
 				}

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zhouyuejie/opencode-trace/internal/session"
+	"github.com/gzzyj/atrace/internal/session"
 )
 
 // Data 是页面直接消费的归一化结果；字段声明顺序就是 JSON 键顺序

@@ -4,11 +4,11 @@
 package all
 
 import (
-	"github.com/zhouyuejie/opencode-trace/internal/source"
-	"github.com/zhouyuejie/opencode-trace/internal/source/claude"
-	"github.com/zhouyuejie/opencode-trace/internal/source/codex"
-	"github.com/zhouyuejie/opencode-trace/internal/source/dsh"
-	"github.com/zhouyuejie/opencode-trace/internal/source/opencode"
+	"github.com/gzzyj/atrace/internal/source"
+	"github.com/gzzyj/atrace/internal/source/claude"
+	"github.com/gzzyj/atrace/internal/source/codex"
+	"github.com/gzzyj/atrace/internal/source/dsh"
+	"github.com/gzzyj/atrace/internal/source/opencode"
 )
 
 // Sources 返回全部已实现的来源适配器（顺序即默认展示顺序）。

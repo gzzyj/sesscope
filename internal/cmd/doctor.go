@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/zhouyuejie/opencode-trace/internal/app"
-	"github.com/zhouyuejie/opencode-trace/internal/cli"
-	"github.com/zhouyuejie/opencode-trace/internal/table"
+	"github.com/gzzyj/atrace/internal/app"
+	"github.com/gzzyj/atrace/internal/cli"
+	"github.com/gzzyj/atrace/internal/table"
 )
 
 func newDoctorCommand(env *app.Env) *cobra.Command {

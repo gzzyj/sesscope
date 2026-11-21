@@ -10,8 +10,8 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 
-	"github.com/zhouyuejie/opencode-trace/internal/session"
-	"github.com/zhouyuejie/opencode-trace/internal/source"
+	"github.com/gzzyj/atrace/internal/session"
+	"github.com/gzzyj/atrace/internal/source"
 )
 
 // writeStore 用 map 造 fixture（不内嵌 JSON 字符串，避免转义问题），压成 zstd 后按真实目录布局落盘。

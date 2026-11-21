@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zhouyuejie/opencode-trace/internal/session"
-	"github.com/zhouyuejie/opencode-trace/internal/source"
-	"github.com/zhouyuejie/opencode-trace/internal/source/all"
+	"github.com/gzzyj/atrace/internal/session"
+	"github.com/gzzyj/atrace/internal/source"
+	"github.com/gzzyj/atrace/internal/source/all"
 )
 
 // NL 是换行（集中定义，避免到处写字面量）。

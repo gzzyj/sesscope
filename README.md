@@ -1,4 +1,4 @@
-# opencode-trace（Go）
+# atrace（Go）
 
 把本机四个 Agent（**opencode / dsh / codex / claude**）的会话读成同一份领域模型，
 再导出、做确定性归因、渲染成 **DeepSeek Harness 轨迹风格**的耗时页面（单文件自包含 HTML）。
@@ -6,24 +6,27 @@
 一个静态二进制：UI 用 `go:embed` 编进去，SQLite 用纯 Go 实现（不需要 cgo），
 zstd 用 `klauspost/compress`（纯 Go）。
 
+> 原名 `opencode-trace`（绑定单一产品）；现在覆盖四个来源，改名 `atrace`。
+> 模块路径 `github.com/gzzyj/atrace`，旧命令名在 `make build` 后留一个软链（弃用）。
+
 ## 快速开始
 
 ```bash
 make build
 
 # 1) 有哪些来源、存储在哪、能不能读
-./out/opencode-trace sources
+./out/atrace sources
 
 # 2) 跨来源列会话（拿到 id）
-./out/opencode-trace sessions --limit 20
-./out/opencode-trace sessions --source dsh --limit 10
-./out/opencode-trace sessions --workspace demo --all
+./out/atrace sessions --limit 20
+./out/atrace sessions --source dsh --limit 10
+./out/atrace sessions --workspace demo --all
 
 # 3) 导出 + 出页面
-./out/opencode-trace export --session <会话 id> --html out/trace.html
+./out/atrace export --session <会话 id> --html out/trace.html
 
 # 4) 不调模型的确定性归因
-./out/opencode-trace analyze --session <会话 id>
+./out/atrace analyze --session <会话 id>
 ```
 
 会话 id 支持**前缀**；跨来源歧义时会列出候选并退出码 2（不猜）。

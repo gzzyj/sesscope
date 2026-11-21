@@ -1,4 +1,4 @@
-module github.com/zhouyuejie/opencode-trace
+module github.com/gzzyj/atrace
 
 go 1.21
 

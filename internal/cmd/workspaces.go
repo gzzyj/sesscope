@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/zhouyuejie/opencode-trace/internal/app"
-	"github.com/zhouyuejie/opencode-trace/internal/cli"
-	"github.com/zhouyuejie/opencode-trace/internal/table"
+	"github.com/gzzyj/atrace/internal/app"
+	"github.com/gzzyj/atrace/internal/cli"
+	"github.com/gzzyj/atrace/internal/table"
 )
 
 func newWorkspacesCommand(env *app.Env) *cobra.Command {
@@ -101,7 +101,7 @@ func newWorkspacesCommand(env *app.Env) *cobra.Command {
 			fmt.Fprintln(stderr)
 			printNotes(stderr, report.Notes)
 			printProblems(stderr, report.Problems)
-			fmt.Fprint(stderr, "下一步：opencode-trace sessions --workspace <ID 或名字>"+NL)
+			fmt.Fprint(stderr, "下一步：atrace sessions --workspace <ID 或名字>"+NL)
 			return nil
 		},
 	}

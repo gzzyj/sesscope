@@ -3,7 +3,7 @@
  * 用 Chrome DevTools Protocol 真实驱动页面：悬停、点击、框选、滚轮缩放、搜索、深链，
  * 断言状态并截图，用来验证「总览时间轴能看到模型/工具耗时、能点到轮次里看 LLM 输出与工具结果」。
  *
- * 用法：node tools/cdp-check.mjs [--html out/opencode-trace.html] [--shots out/verify]
+ * 用法：node tools/cdp-check.mjs [--html out/atrace.html] [--shots out/verify]
  * 退出码：0 全绿；1 有断言失败；2 环境问题。
  */
 import { spawn } from 'node:child_process';
@@ -18,7 +18,7 @@ const arg = (name, fallback) => {
   const i = argv.indexOf('--' + name);
   return i === -1 ? fallback : argv[i + 1];
 };
-const htmlPath = path.resolve(arg('html', path.join(HERE, 'out', 'opencode-trace.html')));
+const htmlPath = path.resolve(arg('html', path.join(HERE, 'out', 'atrace.html')));
 const shotsDir = path.resolve(arg('shots', path.join(HERE, 'out', 'verify')));
 const PORT = 9333 + Math.floor(Math.random() * 200);
 

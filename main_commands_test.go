@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zhouyuejie/opencode-trace/internal/testfixture"
+	"github.com/gzzyj/atrace/internal/testfixture"
 )
 
 func fixtureDB(t *testing.T) string {

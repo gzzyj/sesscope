@@ -23,7 +23,7 @@ type Fallback func(cmd *cobra.Command) error
 // NewRoot 建根命令：只负责骨架（分组、帮助、退出码），不认识任何业务类型。
 func NewRoot(version string, stdio IO, fallback Fallback) *cobra.Command {
 	root := &cobra.Command{
-		Use:               "opencode-trace",
+		Use:               "atrace",
 		Short:             "跨 Agent 会话探查：发现 / 取数 / 归因 / 渲染",
 		Long:              rootLong(version),
 		Version:           version,
@@ -90,7 +90,7 @@ func Execute(root *cobra.Command, args []string, stdio IO) int {
 		err = BadInput(fmt.Errorf("不认识的子命令：%v（可用：sources / doctor / workspaces / sessions / export / analyze / render）", err))
 	}
 	code := CodeOf(err)
-	fmt.Fprintf(stdio.Err, "opencode-trace: %v\n", err)
+	fmt.Fprintf(stdio.Err, "atrace: %v\n", err)
 	if code == ExitBadInput {
 		if cmd, _, findErr := root.Find(rewritten); findErr == nil && cmd != nil && cmd != root {
 			fmt.Fprintf(stdio.Err, "用法：%s --help\n", cmd.CommandPath())
@@ -145,15 +145,15 @@ func flagName(token string) string {
 }
 
 func rootLong(version string) string {
-	return `opencode-trace ` + version + ` —— 跨 Agent 会话探查：发现 / 取数 / 归因 / 渲染
+	return `atrace ` + version + ` —— 跨 Agent 会话探查：发现 / 取数 / 归因 / 渲染
 
 把本机的 opencode / dsh / codex / claude 会话读成同一份领域模型，再导出、归因、渲染成自包含页面。
 
 从零开始：
-  1) opencode-trace sources                   # 有哪些来源、存储在哪、能不能读
-  2) opencode-trace sessions --limit 20       # 跨来源列会话（拿到会话 id）
-  3) opencode-trace export --session <id> --html trace.html
-  4) opencode-trace analyze --session <id>    # 不调模型的确定性归因
+  1) atrace sources                   # 有哪些来源、存储在哪、能不能读
+  2) atrace sessions --limit 20       # 跨来源列会话（拿到会话 id）
+  3) atrace export --session <id> --html trace.html
+  4) atrace analyze --session <id>    # 不调模型的确定性归因
 
 每个子命令都可以 --help 看自己的参数。`
 }

@@ -156,7 +156,8 @@
     collapsed: new Set(),
     theme: (() => {
       try {
-        const saved = window.localStorage.getItem('opencode-trace-theme');
+        // 兼容旧版本写入的 opencode-trace-theme：改名不该把用户的主题选择弄丢。
+        const saved = window.localStorage.getItem('atrace-theme') || window.localStorage.getItem('opencode-trace-theme');
         if (saved === 'light' || saved === 'dark') return saved;
       } catch { /* file:// 下 localStorage 可能不可用 */ }
       return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
@@ -1485,7 +1486,7 @@
   }
   themeBtn.addEventListener('click', () => {
     state.theme = state.theme === 'dark' ? 'light' : 'dark';
-    try { window.localStorage.setItem('opencode-trace-theme', state.theme); } catch { /* 忽略不可写 */ }
+    try { window.localStorage.setItem('atrace-theme', state.theme); } catch { /* 忽略不可写 */ }
     applyTheme();
   });
 

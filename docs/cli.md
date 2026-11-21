@@ -1,4 +1,4 @@
-# opencode-trace 命令设计（契约）
+# atrace 命令设计（契约）
 
 > 本文描述 CLI 的**契约**：命令树、参数语义、资源定位、输出约定、退出码、扩展方式。
 > 实现必须与本文一致；不一致时要改文档或改实现，不允许长期漂移。
@@ -35,10 +35,10 @@
 
 典型四步链路：
 
-    opencode-trace sources                                  # 1. 有哪些来源、存储在哪、能不能读
-    opencode-trace sessions --limit 20                      # 2. 跨来源列会话（拿到 id）
-    opencode-trace export --session <id> --html trace.html  # 3. 导出并出页面
-    opencode-trace analyze --session <id>                   # 4. 归因
+    atrace sources                                  # 1. 有哪些来源、存储在哪、能不能读
+    atrace sessions --limit 20                      # 2. 跨来源列会话（拿到 id）
+    atrace export --session <id> --html trace.html  # 3. 导出并出页面
+    atrace analyze --session <id>                   # 4. 归因
 
 ## 3. 资源定位（统一规则）
 
@@ -176,7 +176,7 @@ STATUS 取值：ok / unsupported / unreadable / missing。
 
 - **前缀匹配**：会话 id 支持唯一前缀；歧义时报错并列出全部候选，**不猜**。
 - **source:id 选择器**：跨源同前缀时用它消歧，例如 dsh:session-abc。
-- **旧用法兼容**：opencode-trace -in x -out y、无参 + 管道输入都等价于 render；
+- **旧用法兼容**：atrace -in x -out y、无参 + 管道输入都等价于 render；
   -db、-session、-limit 这类**单横线长参数**由兼容层自动改写成 -- 形式，并在 stderr 提示弃用一次。
 - **帮助输出**：子命令 --help 写 stdout（cobra 惯例）；只有参数错误时的"用法"写 stderr。
 - **交互保护**：需要 stdin 但 stdin 是终端时，直接给用法，不挂起等待。

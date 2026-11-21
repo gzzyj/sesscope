@@ -49,7 +49,7 @@ func writeOutput(path string, content []byte, stdout io.Writer) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("建目录 %s：%w", dir, err)
 	}
-	temp, err := os.CreateTemp(dir, ".opencode-trace-*")
+	temp, err := os.CreateTemp(dir, ".atrace-*")
 	if err != nil {
 		return fmt.Errorf("在 %s 建临时文件：%w", dir, err)
 	}

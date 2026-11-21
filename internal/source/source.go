@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zhouyuejie/opencode-trace/internal/session"
+	"github.com/gzzyj/atrace/internal/session"
 )
 
 // ListCost 描述"列出会话"要读多少数据，用于给用户提示代价。

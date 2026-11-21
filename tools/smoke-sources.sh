@@ -3,7 +3,7 @@
 # 不联网、只读；结果写 out/smoke/report.json（含每源耗时与产物大小）。
 set -u
 cd "$(dirname "$0")/.." || exit 1
-BIN=./out/opencode-trace
+BIN=./out/atrace
 DIR=out/smoke
 mkdir -p "$DIR"
 REPORT="$DIR/report.json"

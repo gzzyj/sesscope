@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zhouyuejie/opencode-trace/internal/testfixture"
+	"github.com/gzzyj/atrace/internal/testfixture"
 )
 
 func openFixture(t *testing.T) *DB {

@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zhouyuejie/opencode-trace/internal/session"
+	"github.com/gzzyj/atrace/internal/session"
 )
 
 // Document 是规范导出文档。

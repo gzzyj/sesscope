@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zhouyuejie/opencode-trace/internal/table"
+	"github.com/gzzyj/atrace/internal/table"
 )
 
 // WriteJSON 输出带 schema 的 JSON：{"schema": "...", "result": ...}。

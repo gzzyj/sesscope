@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zhouyuejie/opencode-trace/internal/session"
-	"github.com/zhouyuejie/opencode-trace/internal/source"
-	"github.com/zhouyuejie/opencode-trace/internal/testfixture"
-	"github.com/zhouyuejie/opencode-trace/internal/trace"
+	"github.com/gzzyj/atrace/internal/session"
+	"github.com/gzzyj/atrace/internal/source"
+	"github.com/gzzyj/atrace/internal/testfixture"
+	"github.com/gzzyj/atrace/internal/trace"
 )
 
 func fixtureStore(t *testing.T) source.Store {

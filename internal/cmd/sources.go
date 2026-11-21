@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/zhouyuejie/opencode-trace/internal/app"
-	"github.com/zhouyuejie/opencode-trace/internal/cli"
-	"github.com/zhouyuejie/opencode-trace/internal/table"
+	"github.com/gzzyj/atrace/internal/app"
+	"github.com/gzzyj/atrace/internal/cli"
+	"github.com/gzzyj/atrace/internal/table"
 )
 
 func newSourcesCommand(env *app.Env) *cobra.Command {
@@ -111,6 +111,6 @@ func printStatuses(cmd *cobra.Command, report *app.StatusReport, explain bool) e
 		}
 	}
 	printProblems(stderr, report.Problems)
-	fmt.Fprintf(stderr, NL+"下一步：opencode-trace sessions --limit 20"+NL)
+	fmt.Fprintf(stderr, NL+"下一步：atrace sessions --limit 20"+NL)
 	return nil
 }

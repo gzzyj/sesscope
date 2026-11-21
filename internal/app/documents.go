@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zhouyuejie/opencode-trace/internal/attribution"
-	"github.com/zhouyuejie/opencode-trace/internal/export"
-	"github.com/zhouyuejie/opencode-trace/internal/session"
-	"github.com/zhouyuejie/opencode-trace/internal/source"
-	"github.com/zhouyuejie/opencode-trace/internal/trace"
+	"github.com/gzzyj/atrace/internal/attribution"
+	"github.com/gzzyj/atrace/internal/export"
+	"github.com/gzzyj/atrace/internal/session"
+	"github.com/gzzyj/atrace/internal/source"
+	"github.com/gzzyj/atrace/internal/trace"
 )
 
 // Canonical 输出规范导出 JSON（atrace/session.v1）。

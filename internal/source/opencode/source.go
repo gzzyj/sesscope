@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zhouyuejie/opencode-trace/internal/session"
-	"github.com/zhouyuejie/opencode-trace/internal/source"
+	"github.com/gzzyj/atrace/internal/session"
+	"github.com/gzzyj/atrace/internal/source"
 )
 
 // Adapter 是 opencode 的 Source 实现。

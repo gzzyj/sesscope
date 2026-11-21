@@ -1,6 +1,6 @@
-# opencode-trace —— opencode 会话库 → 导出 JSON → DSH 轨迹风格耗时 HTML
+# atrace —— 跨 Agent（opencode / dsh / codex / claude）会话 → 导出 JSON → DSH 轨迹风格耗时 HTML
 
-BINARY := out/opencode-trace
+BINARY := out/atrace
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || date +%Y%m%d-%H%M%S)
 GO ?= go
 SESSION ?=
@@ -12,6 +12,8 @@ all: build
 ## build: 编译单文件二进制（内嵌 UI 资源）
 build:
 	$(GO) build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o $(BINARY) .
+	@# 旧命令名兼容：opencode-trace -> atrace（弃用，只为不让既有脚本立刻挂掉）
+	@ln -sf $(notdir $(BINARY)) out/opencode-trace
 
 ## fmt: 格式检查（有未格式化文件就失败）
 fmt:

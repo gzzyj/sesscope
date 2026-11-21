@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/zhouyuejie/opencode-trace/internal/trace"
+	"github.com/gzzyj/atrace/internal/trace"
 )
 
 func ptrInt64(value int64) *int64    { return &value }

@@ -195,7 +195,7 @@ func (db *DB) ListSessions(filter SessionFilter) ([]SessionRow, error) {
 			return nil, err
 		}
 		if len(projects) == 0 && len(directories) == 0 {
-			return nil, fmt.Errorf("没有匹配 %q 的工作区（先跑 opencode-trace workspaces 看列表）", needle)
+			return nil, fmt.Errorf("没有匹配 %q 的工作区（先跑 atrace workspaces 看列表）", needle)
 		}
 		clauses := make([]string, 0, 2)
 		if len(projects) > 0 {

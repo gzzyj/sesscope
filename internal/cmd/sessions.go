@@ -6,10 +6,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/zhouyuejie/opencode-trace/internal/app"
-	"github.com/zhouyuejie/opencode-trace/internal/cli"
-	"github.com/zhouyuejie/opencode-trace/internal/source"
-	"github.com/zhouyuejie/opencode-trace/internal/table"
+	"github.com/gzzyj/atrace/internal/app"
+	"github.com/gzzyj/atrace/internal/cli"
+	"github.com/gzzyj/atrace/internal/source"
+	"github.com/gzzyj/atrace/internal/table"
 )
 
 func newSessionsCommand(env *app.Env) *cobra.Command {
@@ -119,6 +119,6 @@ func printSessions(cmd *cobra.Command, list *app.SessionList, filterOpts filterO
 		fmt.Fprint(stderr, "* UPDATED 取自文件修改时间（该来源不在文件里记录最后活动时间）"+NL)
 	}
 	printProblems(stderr, list.Problems)
-	fmt.Fprint(stderr, "下一步：opencode-trace export --session <会话 id> --html trace.html"+NL)
+	fmt.Fprint(stderr, "下一步：atrace export --session <会话 id> --html trace.html"+NL)
 	return nil
 }

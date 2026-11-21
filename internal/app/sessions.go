@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/zhouyuejie/opencode-trace/internal/session"
-	"github.com/zhouyuejie/opencode-trace/internal/source"
+	"github.com/gzzyj/atrace/internal/session"
+	"github.com/gzzyj/atrace/internal/source"
 )
 
 // SessionList 是 sessions 命令的结果。
