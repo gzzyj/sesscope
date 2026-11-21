@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/gzzyj/atrace/internal/session"
-	"github.com/gzzyj/atrace/internal/source"
+	"github.com/gzzyj/sesscope/internal/session"
+	"github.com/gzzyj/sesscope/internal/source"
 )
 
 // SessionList 是 sessions 命令的结果。

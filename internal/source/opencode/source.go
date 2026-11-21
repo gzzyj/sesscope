@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gzzyj/atrace/internal/session"
-	"github.com/gzzyj/atrace/internal/source"
+	"github.com/gzzyj/sesscope/internal/session"
+	"github.com/gzzyj/sesscope/internal/source"
 )
 
 // Adapter 是 opencode 的 Source 实现。

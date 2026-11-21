@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/gzzyj/atrace/internal/app"
-	"github.com/gzzyj/atrace/internal/cli"
-	"github.com/gzzyj/atrace/internal/table"
+	"github.com/gzzyj/sesscope/internal/app"
+	"github.com/gzzyj/sesscope/internal/cli"
+	"github.com/gzzyj/sesscope/internal/table"
 )
 
 func newWorkspacesCommand(env *app.Env) *cobra.Command {
@@ -42,7 +42,7 @@ func newWorkspacesCommand(env *app.Env) *cobra.Command {
 				return wrap(err)
 			}
 			if outputOpts.asJSON {
-				return cli.WriteJSON(cmd.OutOrStdout(), "atrace.workspaces.v1", map[string]any{
+				return cli.WriteJSON(cmd.OutOrStdout(), "sesscope.workspaces.v1", map[string]any{
 					"workspaces": report.Items(), "notes": report.Notes, "problems": report.Problems,
 				})
 			}
@@ -101,7 +101,7 @@ func newWorkspacesCommand(env *app.Env) *cobra.Command {
 			fmt.Fprintln(stderr)
 			printNotes(stderr, report.Notes)
 			printProblems(stderr, report.Problems)
-			fmt.Fprint(stderr, "下一步：atrace sessions --workspace <ID 或名字>"+NL)
+			fmt.Fprint(stderr, "下一步：sesscope sessions --workspace <ID 或名字>"+NL)
 			return nil
 		},
 	}

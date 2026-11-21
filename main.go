@@ -1,4 +1,4 @@
-// atrace：跨 Agent 会话探查（发现 / 取数 / 归因 / 渲染）。
+// sesscope：跨 Agent 会话探查（发现 / 取数 / 归因 / 渲染）。
 //
 // 本文件只做装配：命令行框架在 internal/cli，命令在 internal/cmd，
 // 用例在 internal/app，来源适配器在 internal/source/*，页面在 internal/trace。
@@ -8,9 +8,9 @@ import (
 	"io"
 	"os"
 
-	"github.com/gzzyj/atrace/internal/app"
-	"github.com/gzzyj/atrace/internal/cli"
-	"github.com/gzzyj/atrace/internal/cmd"
+	"github.com/gzzyj/sesscope/internal/app"
+	"github.com/gzzyj/sesscope/internal/cli"
+	"github.com/gzzyj/sesscope/internal/cmd"
 )
 
 // version 由构建时注入（-X main.version=...）。

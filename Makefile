@@ -1,6 +1,6 @@
-# atrace —— 跨 Agent（opencode / dsh / codex / claude）会话 → 导出 JSON → DSH 轨迹风格耗时 HTML
+# sesscope —— 跨 Agent（opencode / dsh / codex / claude）会话 → 导出 JSON → DSH 轨迹风格耗时 HTML
 
-BINARY := out/atrace
+BINARY := out/sesscope
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || date +%Y%m%d-%H%M%S)
 GO ?= go
 SESSION ?=

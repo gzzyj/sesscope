@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gzzyj/atrace/internal/session"
-	"github.com/gzzyj/atrace/internal/source"
-	"github.com/gzzyj/atrace/internal/source/jsonl"
+	"github.com/gzzyj/sesscope/internal/session"
+	"github.com/gzzyj/sesscope/internal/source"
+	"github.com/gzzyj/sesscope/internal/source/jsonl"
 )
 
 const formatName = "codex/rollout"

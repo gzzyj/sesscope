@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gzzyj/atrace/internal/session"
+	"github.com/gzzyj/sesscope/internal/session"
 )
 
 // Located 是"某个源 + 某个具体存储"的组合。

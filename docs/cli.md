@@ -1,4 +1,4 @@
-# atrace 命令设计（契约）
+# sesscope 命令设计（契约）
 
 > 本文描述 CLI 的**契约**：命令树、参数语义、资源定位、输出约定、退出码、扩展方式。
 > 实现必须与本文一致；不一致时要改文档或改实现，不允许长期漂移。
@@ -24,7 +24,7 @@
       workspaces  （别名 ws）工作区（跨源 + DeepWorks 应用态叠加）
       sessions    （别名 ls）跨源会话列表
     取数
-      export      （别名 dump）会话 → 规范 JSON（atrace/session.v1）；可顺带 --html / --data
+      export      （别名 dump）会话 → 规范 JSON（sesscope/session.v1）；可顺带 --html / --data
     分析
       analyze     不调用模型的确定性归因（事件链 + 补偿链 + 证据）
     渲染
@@ -35,10 +35,10 @@
 
 典型四步链路：
 
-    atrace sources                                  # 1. 有哪些来源、存储在哪、能不能读
-    atrace sessions --limit 20                      # 2. 跨来源列会话（拿到 id）
-    atrace export --session <id> --html trace.html  # 3. 导出并出页面
-    atrace analyze --session <id>                   # 4. 归因
+    sesscope sources                                  # 1. 有哪些来源、存储在哪、能不能读
+    sesscope sessions --limit 20                      # 2. 跨来源列会话（拿到 id）
+    sesscope export --session <id> --html trace.html  # 3. 导出并出页面
+    sesscope analyze --session <id>                   # 4. 归因
 
 ## 3. 资源定位（统一规则）
 
@@ -71,7 +71,7 @@
 | stderr | 存储路径、发现证据（--explain）、每源降级说明、摘要、"下一步"提示、弃用提示 |
 
 - 表格按**显示宽度**对齐（CJK/emoji 记 2 列）。
-- --json 统一外壳：{"schema":"atrace.<命令>.v1","result": …}；字段只增不改名。
+- --json 统一外壳：{"schema":"sesscope.<命令>.v1","result": …}；字段只增不改名。
 - 文件型来源的 UPDATED* 表示取自文件修改时间，表格打 * 并在 stderr 解释。
 - 消息数未知时显示 -（例如 dsh/codex 只读头部，不为了列个数字去全扫）。
 
@@ -176,7 +176,7 @@ STATUS 取值：ok / unsupported / unreadable / missing。
 
 - **前缀匹配**：会话 id 支持唯一前缀；歧义时报错并列出全部候选，**不猜**。
 - **source:id 选择器**：跨源同前缀时用它消歧，例如 dsh:session-abc。
-- **旧用法兼容**：atrace -in x -out y、无参 + 管道输入都等价于 render；
+- **旧用法兼容**：sesscope -in x -out y、无参 + 管道输入都等价于 render；
   -db、-session、-limit 这类**单横线长参数**由兼容层自动改写成 -- 形式，并在 stderr 提示弃用一次。
 - **帮助输出**：子命令 --help 写 stdout（cobra 惯例）；只有参数错误时的"用法"写 stderr。
 - **交互保护**：需要 stdin 但 stdin 是终端时，直接给用法，不挂起等待。

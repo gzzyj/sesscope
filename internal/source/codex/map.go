@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gzzyj/atrace/internal/session"
-	"github.com/gzzyj/atrace/internal/session/toolsem"
-	"github.com/gzzyj/atrace/internal/source"
-	"github.com/gzzyj/atrace/internal/source/jsonl"
+	"github.com/gzzyj/sesscope/internal/session"
+	"github.com/gzzyj/sesscope/internal/session/toolsem"
+	"github.com/gzzyj/sesscope/internal/source"
+	"github.com/gzzyj/sesscope/internal/source/jsonl"
 )
 
 type toolRef struct {

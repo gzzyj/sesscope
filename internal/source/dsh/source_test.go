@@ -10,8 +10,8 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 
-	"github.com/gzzyj/atrace/internal/session"
-	"github.com/gzzyj/atrace/internal/source"
+	"github.com/gzzyj/sesscope/internal/session"
+	"github.com/gzzyj/sesscope/internal/source"
 )
 
 // writeStore 用 map 造 fixture（不内嵌 JSON 字符串，避免转义问题），压成 zstd 后按真实目录布局落盘。
@@ -119,6 +119,16 @@ func TestSessionsAndOpen(t *testing.T) {
 	opened, err := New().Open(context.Background(), store, summaries[0].Ref, source.OpenOptions{})
 	if err != nil {
 		t.Fatalf("取会话：%v", err)
+	}
+	// 头行字段在顶层：id / cwd / agentPreset 必须带出来（曾经因为按 data 解析而丢失）。
+	if opened.Ref.ID != "session-test-1" {
+		t.Fatalf("Ref.ID = %q，期望 session-test-1", opened.Ref.ID)
+	}
+	if opened.Meta.Directory == nil || *opened.Meta.Directory != "/work/demo" {
+		t.Fatalf("Directory = %v，期望 /work/demo", opened.Meta.Directory)
+	}
+	if opened.Meta.Agent == nil || *opened.Meta.Agent != "ptc" {
+		t.Fatalf("Agent = %v，期望 ptc", opened.Meta.Agent)
 	}
 	if len(opened.Messages) != 2 {
 		t.Fatalf("消息数 = %d，期望 2", len(opened.Messages))

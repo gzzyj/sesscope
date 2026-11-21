@@ -6,10 +6,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/gzzyj/atrace/internal/app"
-	"github.com/gzzyj/atrace/internal/cli"
-	"github.com/gzzyj/atrace/internal/source"
-	"github.com/gzzyj/atrace/internal/table"
+	"github.com/gzzyj/sesscope/internal/app"
+	"github.com/gzzyj/sesscope/internal/cli"
+	"github.com/gzzyj/sesscope/internal/source"
+	"github.com/gzzyj/sesscope/internal/table"
 )
 
 func newSessionsCommand(env *app.Env) *cobra.Command {
@@ -46,7 +46,7 @@ func newSessionsCommand(env *app.Env) *cobra.Command {
 				return wrap(err)
 			}
 			if outputOpts.asJSON {
-				return cli.WriteJSON(cmd.OutOrStdout(), "atrace.sessions.v1", list)
+				return cli.WriteJSON(cmd.OutOrStdout(), "sesscope.sessions.v1", list)
 			}
 			return printSessions(cmd, list, filterOpts)
 		},
@@ -119,6 +119,6 @@ func printSessions(cmd *cobra.Command, list *app.SessionList, filterOpts filterO
 		fmt.Fprint(stderr, "* UPDATED 取自文件修改时间（该来源不在文件里记录最后活动时间）"+NL)
 	}
 	printProblems(stderr, list.Problems)
-	fmt.Fprint(stderr, "下一步：atrace export --session <会话 id> --html trace.html"+NL)
+	fmt.Fprint(stderr, "下一步：sesscope export --session <会话 id> --html trace.html"+NL)
 	return nil
 }

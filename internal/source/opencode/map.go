@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gzzyj/atrace/internal/session"
-	"github.com/gzzyj/atrace/internal/session/toolsem"
-	"github.com/gzzyj/atrace/internal/source"
+	"github.com/gzzyj/sesscope/internal/session"
+	"github.com/gzzyj/sesscope/internal/session/toolsem"
+	"github.com/gzzyj/sesscope/internal/source"
 )
 
 // 本文件把 SQLite 行映射成源无关的领域模型。

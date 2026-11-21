@@ -6,11 +6,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/gzzyj/atrace/internal/app"
-	"github.com/gzzyj/atrace/internal/attribution"
-	"github.com/gzzyj/atrace/internal/cli"
-	"github.com/gzzyj/atrace/internal/source"
-	"github.com/gzzyj/atrace/internal/trace"
+	"github.com/gzzyj/sesscope/internal/app"
+	"github.com/gzzyj/sesscope/internal/attribution"
+	"github.com/gzzyj/sesscope/internal/cli"
+	"github.com/gzzyj/sesscope/internal/source"
+	"github.com/gzzyj/sesscope/internal/trace"
 )
 
 func newExportCommand(env *app.Env) *cobra.Command {
@@ -22,7 +22,7 @@ func newExportCommand(env *app.Env) *cobra.Command {
 		Use:     "export",
 		Aliases: []string{"dump"},
 		Short:   "把会话导出成 JSON（规范格式；可顺带渲染 HTML）",
-		Long: `导出会话。默认输出规范格式（atrace/session.v1），它同时是领域模型的快照：
+		Long: `导出会话。默认输出规范格式（sesscope/session.v1），它同时是领域模型的快照：
   --format canonical  （默认）规范格式，render/analyze 都吃
   --format legacy     旧的 opencode 形状 session-export.json（仅 opencode 支持）
 

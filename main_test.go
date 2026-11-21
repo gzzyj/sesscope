@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gzzyj/atrace/internal/cli"
+	"github.com/gzzyj/sesscope/internal/cli"
 )
 
 // 退出码常量：与 cli 包保持一致（测试历史上直接叫 exitOK/exitBadInput）。
@@ -231,7 +231,7 @@ func TestRunVersion(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("退出码 = %d，stderr：%s", code, stderr)
 	}
-	if !strings.Contains(stdout, "atrace") {
+	if !strings.Contains(stdout, "sesscope") {
 		t.Errorf("stdout = %s", stdout)
 	}
 }

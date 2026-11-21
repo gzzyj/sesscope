@@ -6,10 +6,10 @@ import (
 	"errors"
 	"time"
 
-	"github.com/gzzyj/atrace/internal/session"
-	"github.com/gzzyj/atrace/internal/session/toolsem"
-	"github.com/gzzyj/atrace/internal/source"
-	"github.com/gzzyj/atrace/internal/source/jsonl"
+	"github.com/gzzyj/sesscope/internal/session"
+	"github.com/gzzyj/sesscope/internal/session/toolsem"
+	"github.com/gzzyj/sesscope/internal/source"
+	"github.com/gzzyj/sesscope/internal/source/jsonl"
 )
 
 type toolRef struct {
@@ -85,8 +85,10 @@ func (m *mapper) handle(number int, line []byte) error {
 	}
 	switch env.Type {
 	case "session":
+		// 头行的字段在**顶层**（{type,version,id,createdAt,cwd,...}），不在 data 里。
+		// 早先按 env.Data 解析，导致 Open 出来的会话丢了 id/cwd/agent —— 列表正常、导出静默缺字段。
 		var head header
-		if err := json.Unmarshal(env.Data, &head); err == nil {
+		if err := json.Unmarshal(line, &head); err == nil {
 			m.applyHeader(head)
 		}
 	case "session/title":

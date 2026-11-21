@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gzzyj/atrace/internal/testfixture"
+	"github.com/gzzyj/sesscope/internal/testfixture"
 )
 
 func openFixture(t *testing.T) *DB {

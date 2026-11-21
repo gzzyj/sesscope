@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gzzyj/atrace/internal/table"
+	"github.com/gzzyj/sesscope/internal/table"
 )
 
 // WriteJSON 输出带 schema 的 JSON：{"schema": "...", "result": ...}。

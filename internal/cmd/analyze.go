@@ -6,12 +6,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/gzzyj/atrace/internal/app"
-	"github.com/gzzyj/atrace/internal/attribution"
-	"github.com/gzzyj/atrace/internal/cli"
-	"github.com/gzzyj/atrace/internal/source"
-	"github.com/gzzyj/atrace/internal/table"
-	"github.com/gzzyj/atrace/internal/trace"
+	"github.com/gzzyj/sesscope/internal/app"
+	"github.com/gzzyj/sesscope/internal/attribution"
+	"github.com/gzzyj/sesscope/internal/cli"
+	"github.com/gzzyj/sesscope/internal/source"
+	"github.com/gzzyj/sesscope/internal/table"
+	"github.com/gzzyj/sesscope/internal/trace"
 )
 
 func newAnalyzeCommand(env *app.Env) *cobra.Command {
@@ -69,7 +69,7 @@ func newAnalyzeCommand(env *app.Env) *cobra.Command {
 			}
 
 			if outputOpts.asJSON {
-				return cli.WriteJSON(stdout, "atrace.analyze.v1", map[string]any{
+				return cli.WriteJSON(stdout, "sesscope.analyze.v1", map[string]any{
 					"source":   sourceLabel,
 					"session":  sessionLabel(opened),
 					"summary":  attribution.Summarize(opened.Episodes),

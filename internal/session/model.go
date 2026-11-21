@@ -8,12 +8,12 @@
 // 指针语义：字段为 nil 表示"源没有提供这个值"，绝不用零值冒充；页面/CLI 依赖这一点
 // 来区分"耗时 0ms"和"没有耗时"。这也是本包几乎所有标量都用指针的原因。
 //
-// 本包同时是"规范导出格式"（atrace/session.v1）的 schema：
+// 本包同时是"规范导出格式"（sesscope/session.v1）的 schema：
 // json tag 就是对外契约，只允许新增字段，不允许改名。
 package session
 
 // Schema 是规范导出格式的版本标识。
-const Schema = "atrace/session.v1"
+const Schema = "sesscope/session.v1"
 
 // SourceID 是会话来源产品的稳定标识。
 type SourceID string

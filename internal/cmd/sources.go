@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/gzzyj/atrace/internal/app"
-	"github.com/gzzyj/atrace/internal/cli"
-	"github.com/gzzyj/atrace/internal/table"
+	"github.com/gzzyj/sesscope/internal/app"
+	"github.com/gzzyj/sesscope/internal/cli"
+	"github.com/gzzyj/sesscope/internal/table"
 )
 
 func newSourcesCommand(env *app.Env) *cobra.Command {
@@ -33,7 +33,7 @@ func newSourcesCommand(env *app.Env) *cobra.Command {
 				return wrap(err)
 			}
 			if outputOpts.asJSON {
-				return cli.WriteJSON(cmd.OutOrStdout(), "atrace.sources.v1", report)
+				return cli.WriteJSON(cmd.OutOrStdout(), "sesscope.sources.v1", report)
 			}
 			return printStatuses(cmd, report, explain)
 		},
@@ -111,6 +111,6 @@ func printStatuses(cmd *cobra.Command, report *app.StatusReport, explain bool) e
 		}
 	}
 	printProblems(stderr, report.Problems)
-	fmt.Fprintf(stderr, NL+"下一步：atrace sessions --limit 20"+NL)
+	fmt.Fprintf(stderr, NL+"下一步：sesscope sessions --limit 20"+NL)
 	return nil
 }

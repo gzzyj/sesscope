@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gzzyj/atrace/internal/session"
+	"github.com/gzzyj/sesscope/internal/session"
 )
 
 // ApplyQuery 是四源共享的过滤/排序/截断语义，避免每个适配器各写一份"差不多"的实现。

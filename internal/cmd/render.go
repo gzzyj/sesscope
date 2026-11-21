@@ -6,10 +6,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/gzzyj/atrace/internal/app"
-	"github.com/gzzyj/atrace/internal/attribution"
-	"github.com/gzzyj/atrace/internal/cli"
-	"github.com/gzzyj/atrace/internal/trace"
+	"github.com/gzzyj/sesscope/internal/app"
+	"github.com/gzzyj/sesscope/internal/attribution"
+	"github.com/gzzyj/sesscope/internal/cli"
+	"github.com/gzzyj/sesscope/internal/trace"
 )
 
 type renderOptions struct {
@@ -44,7 +44,7 @@ func newRenderCommand(env *app.Env) *cobra.Command {
 	return command
 }
 
-// RenderFallback 是老用法的入口：atrace < x.json > y.html。
+// RenderFallback 是老用法的入口：sesscope < x.json > y.html。
 func RenderFallback(env *app.Env) cli.Fallback {
 	return func(cmd *cobra.Command) error {
 		opts := &renderOptions{inPath: "-", outPath: "-", chainGap: attribution.DefaultChainGap}
@@ -58,7 +58,7 @@ func runRender(env *app.Env, opts *renderOptions, cmd *cobra.Command) error {
 		return cli.BadInput(fmt.Errorf("--out 和 --data 不能同时用 -（stdout 只能写一样东西）"))
 	}
 	if opts.inPath == "-" && cli.StdinIsTerminal(cmd.InOrStdin()) {
-		return cli.BadInput(fmt.Errorf("没有给 --in，stdin 又是终端。请用管道喂 JSON，或显式指定 --in <文件>：%s  atrace render < session-export.json > trace.html%s  atrace export --session ses_x | atrace render --out trace.html", NL, NL))
+		return cli.BadInput(fmt.Errorf("没有给 --in，stdin 又是终端。请用管道喂 JSON，或显式指定 --in <文件>：%s  sesscope render < session-export.json > trace.html%s  sesscope export --session ses_x | sesscope render --out trace.html", NL, NL))
 	}
 	stamp := env.Clock()
 	if opts.generatedAt != "" {

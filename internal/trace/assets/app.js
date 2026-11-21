@@ -156,7 +156,7 @@
     collapsed: new Set(),
     theme: (() => {
       try {
-        const saved = window.localStorage.getItem('atrace-theme');
+        const saved = window.localStorage.getItem('sesscope-theme');
         if (saved === 'light' || saved === 'dark') return saved;
       } catch { /* file:// 下 localStorage 可能不可用 */ }
       return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
@@ -1485,7 +1485,7 @@
   }
   themeBtn.addEventListener('click', () => {
     state.theme = state.theme === 'dark' ? 'light' : 'dark';
-    try { window.localStorage.setItem('atrace-theme', state.theme); } catch { /* 忽略不可写 */ }
+    try { window.localStorage.setItem('sesscope-theme', state.theme); } catch { /* 忽略不可写 */ }
     applyTheme();
   });
 

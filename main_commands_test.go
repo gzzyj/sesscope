@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gzzyj/atrace/internal/testfixture"
+	"github.com/gzzyj/sesscope/internal/testfixture"
 )
 
 func fixtureDB(t *testing.T) string {
@@ -106,7 +106,7 @@ func TestWorkspacesJSON(t *testing.T) {
 		Notes []string `json:"notes"`
 	}
 	schema := decodeEnvelope(t, stdout, &result)
-	if schema != "atrace.workspaces.v1" {
+	if schema != "sesscope.workspaces.v1" {
 		t.Errorf("schema = %q", schema)
 	}
 	if len(result.Workspaces) == 0 {
@@ -180,7 +180,7 @@ func TestSessionsFilterAndJSON(t *testing.T) {
 	}
 	// 结构体字段名大小写不敏感，Go 的 encoding/json 能对上 items。
 	schema := decodeEnvelope(t, stdout, &result)
-	if schema != "atrace.sessions.v1" {
+	if schema != "sesscope.sessions.v1" {
 		t.Errorf("schema = %q", schema)
 	}
 	if len(result.Items) != 1 {
@@ -263,7 +263,7 @@ func TestExportCanonicalThenRender(t *testing.T) {
 	if err := json.Unmarshal(raw, &document); err != nil {
 		t.Fatalf("规范导出不是合法 JSON：%v", err)
 	}
-	if document.Schema != "atrace/session.v1" {
+	if document.Schema != "sesscope/session.v1" {
 		t.Errorf("schema = %q", document.Schema)
 	}
 	if document.Session.Ref.ID != testfixture.RootSessionID || document.Session.Meta.Title != "根会话：导出一条流水线" {

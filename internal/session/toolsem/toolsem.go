@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/gzzyj/atrace/internal/session"
+	"github.com/gzzyj/sesscope/internal/session"
 )
 
 // Unwrap 把"被编码成 JSON 字符串的参数"还原成对象/文本字节。

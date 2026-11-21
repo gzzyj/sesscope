@@ -1,4 +1,4 @@
-module github.com/gzzyj/atrace
+module github.com/gzzyj/sesscope
 
 go 1.21
 

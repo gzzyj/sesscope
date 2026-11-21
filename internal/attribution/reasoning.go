@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/gzzyj/atrace/internal/trace"
+	"github.com/gzzyj/sesscope/internal/trace"
 )
 
 // 归因里唯一"像推理"的部分（为什么这么做），模型在运行时已经写进 reasoning 了。

@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gzzyj/atrace/internal/attribution"
-	"github.com/gzzyj/atrace/internal/export"
-	"github.com/gzzyj/atrace/internal/session"
-	"github.com/gzzyj/atrace/internal/source"
-	"github.com/gzzyj/atrace/internal/trace"
+	"github.com/gzzyj/sesscope/internal/attribution"
+	"github.com/gzzyj/sesscope/internal/export"
+	"github.com/gzzyj/sesscope/internal/session"
+	"github.com/gzzyj/sesscope/internal/source"
+	"github.com/gzzyj/sesscope/internal/trace"
 )
 
-// Canonical 输出规范导出 JSON（atrace/session.v1）。
+// Canonical 输出规范导出 JSON（sesscope/session.v1）。
 func (e *Env) Canonical(value *session.Session, generatedAt time.Time) ([]byte, error) {
 	return export.Encode(export.New(value, generatedAt))
 }

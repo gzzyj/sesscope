@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gzzyj/atrace/internal/session"
-	"github.com/gzzyj/atrace/internal/source"
+	"github.com/gzzyj/sesscope/internal/session"
+	"github.com/gzzyj/sesscope/internal/source"
 )
 
 // StatusRow 是 sources 命令的一行：一个存储的健康度。

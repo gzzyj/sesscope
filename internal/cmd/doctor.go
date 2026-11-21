@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/gzzyj/atrace/internal/app"
-	"github.com/gzzyj/atrace/internal/cli"
-	"github.com/gzzyj/atrace/internal/table"
+	"github.com/gzzyj/sesscope/internal/app"
+	"github.com/gzzyj/sesscope/internal/cli"
+	"github.com/gzzyj/sesscope/internal/table"
 )
 
 func newDoctorCommand(env *app.Env) *cobra.Command {
@@ -25,7 +25,7 @@ func newDoctorCommand(env *app.Env) *cobra.Command {
 				return wrap(err)
 			}
 			if outputOpts.asJSON {
-				return cli.WriteJSON(cmd.OutOrStdout(), "atrace.doctor.v1", map[string]any{
+				return cli.WriteJSON(cmd.OutOrStdout(), "sesscope.doctor.v1", map[string]any{
 					"stores": rows, "problems": problems,
 				})
 			}

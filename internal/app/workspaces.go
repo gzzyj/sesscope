@@ -6,9 +6,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gzzyj/atrace/internal/deepworks"
-	"github.com/gzzyj/atrace/internal/session"
-	"github.com/gzzyj/atrace/internal/source"
+	"github.com/gzzyj/sesscope/internal/deepworks"
+	"github.com/gzzyj/sesscope/internal/session"
+	"github.com/gzzyj/sesscope/internal/source"
 )
 
 // WorkspaceRow 是 workspaces 命令的一行。

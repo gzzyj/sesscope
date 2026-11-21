@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gzzyj/atrace/internal/session"
-	"github.com/gzzyj/atrace/internal/source"
-	"github.com/gzzyj/atrace/internal/source/all"
+	"github.com/gzzyj/sesscope/internal/session"
+	"github.com/gzzyj/sesscope/internal/source"
+	"github.com/gzzyj/sesscope/internal/source/all"
 )
 
 // NL 是换行（集中定义，避免到处写字面量）。

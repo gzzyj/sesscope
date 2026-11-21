@@ -1,4 +1,4 @@
-// Package export 是规范导出格式（atrace/session.v1）的编解码。
+// Package export 是规范导出格式（sesscope/session.v1）的编解码。
 //
 // 规范导出 = 领域模型的 JSON 快照 + 一层外壳（schema/generated_at）。
 // 旧导出（opencode 的 export_info/session/global_stats/messages）仍然可读，
@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gzzyj/atrace/internal/session"
+	"github.com/gzzyj/sesscope/internal/session"
 )
 
 // Document 是规范导出文档。

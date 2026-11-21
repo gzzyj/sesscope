@@ -4,7 +4,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/gzzyj/atrace/internal/app"
+	"github.com/gzzyj/sesscope/internal/app"
 )
 
 // Register 把全部子命令挂到根命令上。

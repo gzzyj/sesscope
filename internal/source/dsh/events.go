@@ -3,7 +3,7 @@ package dsh
 import (
 	"encoding/json"
 
-	"github.com/gzzyj/atrace/internal/session"
+	"github.com/gzzyj/sesscope/internal/session"
 )
 
 // 文件头的版本号（session.v4.jsonl.zstd）与事件里的 version 字段一致。

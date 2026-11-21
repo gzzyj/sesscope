@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gzzyj/atrace/internal/session"
+	"github.com/gzzyj/sesscope/internal/session"
 )
 
 func loadGoldenExport(t *testing.T) *Export {

@@ -62,10 +62,10 @@
 4. 每个降级事实至少 1 条 Diagnostic（缺能力、加密思考、推断状态、截断、torn tail……）。
 5. Args/Output/Error 保持原始字节，不重排、不数字归一（键序与数字写法有意义）。
 
-## 4. 规范导出（atrace/session.v1）
+## 4. 规范导出（sesscope/session.v1）
 
     {
-      "schema": "atrace/session.v1",
+      "schema": "sesscope/session.v1",
       "generated_at": "2026-11-21T07:30:13.383Z",
       "session": { "ref": {...}, "meta": {...}, "messages": [...],
                    "diagnostics": [...], "declared": {...}, "unknown": {...} }

@@ -4,11 +4,11 @@
 package all
 
 import (
-	"github.com/gzzyj/atrace/internal/source"
-	"github.com/gzzyj/atrace/internal/source/claude"
-	"github.com/gzzyj/atrace/internal/source/codex"
-	"github.com/gzzyj/atrace/internal/source/dsh"
-	"github.com/gzzyj/atrace/internal/source/opencode"
+	"github.com/gzzyj/sesscope/internal/source"
+	"github.com/gzzyj/sesscope/internal/source/claude"
+	"github.com/gzzyj/sesscope/internal/source/codex"
+	"github.com/gzzyj/sesscope/internal/source/dsh"
+	"github.com/gzzyj/sesscope/internal/source/opencode"
 )
 
 // Sources 返回全部已实现的来源适配器（顺序即默认展示顺序）。

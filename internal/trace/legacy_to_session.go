@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/gzzyj/atrace/internal/session"
-	"github.com/gzzyj/atrace/internal/session/toolsem"
+	"github.com/gzzyj/sesscope/internal/session"
+	"github.com/gzzyj/sesscope/internal/session/toolsem"
 )
 
 // ExportToSession 把 opencode 导出文档（旧口径）映射成源无关的领域模型。

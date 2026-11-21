@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/gzzyj/atrace/internal/app"
-	"github.com/gzzyj/atrace/internal/cli"
-	"github.com/gzzyj/atrace/internal/source"
+	"github.com/gzzyj/sesscope/internal/app"
+	"github.com/gzzyj/sesscope/internal/cli"
+	"github.com/gzzyj/sesscope/internal/source"
 )
 
 func newVersionCommand(version string, env *app.Env) *cobra.Command {
@@ -19,7 +19,7 @@ func newVersionCommand(version string, env *app.Env) *cobra.Command {
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !outputOpts.asJSON {
-				fmt.Fprintf(cmd.OutOrStdout(), "atrace %s"+NL, version)
+				fmt.Fprintf(cmd.OutOrStdout(), "sesscope %s"+NL, version)
 				for _, item := range env.Registry.All() {
 					fmt.Fprintf(cmd.OutOrStdout(), "  %-10s %s"+NL, item.ID(), describeCapabilities(item.Capabilities()))
 				}
@@ -32,7 +32,7 @@ func newVersionCommand(version string, env *app.Env) *cobra.Command {
 					"capabilities": item.Capabilities(),
 				})
 			}
-			return cli.WriteJSON(cmd.OutOrStdout(), "atrace.version.v1", map[string]any{
+			return cli.WriteJSON(cmd.OutOrStdout(), "sesscope.version.v1", map[string]any{
 				"version": version, "sources": sources,
 			})
 		},
