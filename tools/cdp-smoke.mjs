@@ -115,6 +115,18 @@ check('页面有记录', basics.records > 0, basics.records);
 check('时间轴条与台账行都渲染出来', basics.bars > 0 && basics.rows > 0, basics.bars + '/' + basics.rows);
 check('轮次表头存在', basics.turns > 0, basics.turns);
 
+const inputMarkers = await evaluate(() => {
+  const trace = window.__trace;
+  const records = trace.records.filter((r) => r.kind === 'user').length;
+  const bars = [...document.querySelectorAll('.bar[data-kind="user"]')].map((b) => {
+    const rect = b.getBoundingClientRect();
+    return { w: rect.width, h: rect.height, x: rect.x };
+  });
+  return { records, bars: bars.length, visible: bars.some((r) => r.w >= 4 && r.h >= 4) };
+});
+check('用户输入标记在时间轴上可见', inputMarkers.records === 0 || (inputMarkers.bars >= 1 && inputMarkers.visible),
+  inputMarkers.records + ' 条输入 / ' + inputMarkers.bars + ' 个标记');
+
 const modelBar = await evaluate(() => {
   const bar = document.querySelector('.bar[data-kind="model"]');
   if (!bar) return null;

@@ -277,10 +277,25 @@
     return merged;
   }
   const ACTIVITY = mergeIntervals(records.filter((r) => r.t1 > r.t0).map((r) => [r.t0, r.t1]));
-  const DATA_START = ACTIVITY.length ? ACTIVITY[0][0] : (meta.firstMs ?? 0);
-  const DATA_END = ACTIVITY.length ? ACTIVITY[ACTIVITY.length - 1][1] : (meta.lastMs ?? DATA_START + 1);
+  // 时间轴范围要包住"只有时刻、没有时长"的记录（用户输入、自动续跑标记）。
+  // 以前起点取第一个活动区间，输入标记落在范围之外，会被整条丢掉——输入泳道看起来永远是空的。
+  let RECORD_START = meta.firstMs ?? Number.POSITIVE_INFINITY;
+  let RECORD_END = meta.lastMs ?? Number.NEGATIVE_INFINITY;
+  for (const rec of records) {
+    if (rec.t0 < RECORD_START) RECORD_START = rec.t0;
+    const end = rec.t1 ?? rec.t0;
+    if (end > RECORD_END) RECORD_END = end;
+  }
+  const DATA_START = Number.isFinite(RECORD_START) ? RECORD_START : (ACTIVITY.length ? ACTIVITY[0][0] : 0);
+  const DATA_END = Number.isFinite(RECORD_END) ? Math.max(RECORD_END, DATA_START + 1) : DATA_START + 1;
+  // 空档 = 活动区间在 [DATA_START, DATA_END] 里的补集（含首尾），这样投影能覆盖整个范围。
   const GAPS = [];
-  for (let i = 1; i < ACTIVITY.length; i++) GAPS.push({ t0: ACTIVITY[i - 1][1], t1: ACTIVITY[i][0] });
+  let gapCursor = DATA_START;
+  for (const [start, end] of ACTIVITY) {
+    if (start > gapCursor) GAPS.push({ t0: gapCursor, t1: start });
+    if (end > gapCursor) gapCursor = end;
+  }
+  if (DATA_END > gapCursor) GAPS.push({ t0: gapCursor, t1: DATA_END });
   const GAP_PX = 20;
 
   function currentDomain() {
