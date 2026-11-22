@@ -41,7 +41,7 @@
 | 项 | 说明 |
 |---|---|
 | 存储 | ~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl.zst |
-| 映射 | session_meta → Meta（cwd/cli_version/model_provider）；turn_context → 轮次 id；event_msg item_completed{UserMessage} → **人类轮次锚**；item_completed 的 started_at_ms/completed_at_ms（Reasoning / AgentMessage）→ Message.ModelSpans 模型活动区间（response_item 里 role=user 的内容混有 AGENTS.md / 环境注入，映射成 system）；response_item message → 步骤；function_call / custom_tool_call（+ *_output） → 工具；token_usage_record → 用量；compacted → 压缩（无起止）；task_complete/turn_aborted → 结束与错误 |
+| 映射 | session_meta → Meta（cwd/cli_version/model_provider）；turn_context → 轮次 id；event_msg item_completed{UserMessage} → **人类轮次锚**；item_completed 的 started_at_ms/completed_at_ms（Reasoning / AgentMessage）→ Message.ModelSpans 模型活动区间；reasoning 只有 encrypted_content 时保留成加密思考部件（区间可见、正文不可读）（response_item 里 role=user 的内容混有 AGENTS.md / 环境注入，映射成 system）；response_item message → 步骤；function_call / custom_tool_call（+ *_output） → 工具；token_usage_record → 用量；compacted → 压缩（无起止）；task_complete/turn_aborted → 结束与错误 |
 | 能力 | 轮次编号、token、工具参数/输出、压缩记录 |
 | 缺口 | 思考多为 encrypted_content（显式诊断）；工具状态与起止时间靠"是否出现输出记录"推断（显式诊断）；无标题（取首条人类输入派生）；无成本；子会话关系未证实 |
 

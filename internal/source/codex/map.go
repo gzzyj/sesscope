@@ -438,10 +438,7 @@ func (m *mapper) closeOpenAssistant(index int) {
 
 func (m *mapper) applyReasoning(item responseItem, at int64) {
 	text := reasoningText(item)
-	if text == "" {
-		if item.EncryptedContent != "" {
-			m.encryptedSeen = true
-		}
+	if text == "" && item.EncryptedContent == "" {
 		return
 	}
 	part := session.Part{
@@ -452,7 +449,14 @@ func (m *mapper) applyReasoning(item responseItem, at int64) {
 		UpdatedMs: session.I64(at),
 		StartMs:   session.I64(at),
 		EndMs:     session.I64(at),
-		Text:      session.Str(m.clip(text)),
+	}
+	if text != "" {
+		part.Text = session.Str(m.clip(text))
+	} else {
+		// 服务端只给了密文：正文拿不到，但这段思考真实存在（有起止、有密文长度）。
+		// 保留成"加密思考"部件，页面如实标注，而不是整条丢掉。
+		m.encryptedSeen = true
+		part.Encrypted = session.Bool(true)
 	}
 	m.appendToLastAssistant(part)
 }
@@ -647,8 +651,8 @@ func (m *mapper) finalize() {
 	}
 	if m.encryptedSeen {
 		m.out.Diagnostics = append(m.out.Diagnostics, session.Diagnostic{
-			Level: "info", Code: "encrypted-reasoning", Title: "思考内容加密，本来源不提供",
-			Detail: "codex 的 reasoning 只存 encrypted_content（或空 summary），页面不显示思考文本。",
+			Level: "info", Code: "encrypted-reasoning", Title: "思考内容加密，本地不可读",
+			Detail: "codex 的 reasoning 只有 encrypted_content（服务端加密）：页面保留每段思考的区间并标注「加密」，正文无法显示。",
 		})
 	}
 	if m.derivedStatus {

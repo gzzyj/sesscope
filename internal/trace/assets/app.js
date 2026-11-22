@@ -90,6 +90,9 @@
     });
     for (const step of turn.steps) {
       const think = step.reasoningMs + step.textMs > 0 ? step.reasoningMs / (step.reasoningMs + step.textMs) : 0;
+      const encryptedOnly = (step.reasoning || []).length > 0
+        && (step.reasoning || []).every((span) => span.encrypted)
+        && (step.texts || []).length === 0;
       const spans = Array.isArray(step.modelSpans) && step.modelSpans.length > 0 ? step.modelSpans : null;
       if (spans) {
         // 源显式记录的分段：段与段之间夹着工具调用，一段画一条，不能并成一个长条。
@@ -97,7 +100,7 @@
           pushRecord({
             key: 't' + turn.index + 's' + step.index,
             kind: 'model', lane: 1, turn, step, tool: null,
-            t0: span.startMs, t1: span.endMs, think,
+            t0: span.startMs, t1: span.endMs, think, encrypted: encryptedOnly,
             status: step.status,
             label: '模型调用',
           });
@@ -106,7 +109,7 @@
         pushRecord({
           key: 't' + turn.index + 's' + step.index,
           kind: 'model', lane: 1, turn, step, tool: null,
-          t0: step.modelStartMs, t1: step.modelEndMs, think,
+          t0: step.modelStartMs, t1: step.modelEndMs, think, encrypted: encryptedOnly,
           status: step.status,
           label: '模型调用',
         });
@@ -152,6 +155,26 @@
   // 有的来源（codex）会记录整段模型活动，但只给部分思考留文本，两者差额要单独说明，
   // 否则"模型 12 s"和"思考 2 s + 生成 2 s"看起来对不上。
   const modelGapMs = (step) => Math.max(0, (step.modelMs ?? 0) - (step.reasoningMs ?? 0) - (step.textMs ?? 0));
+
+  // 思考分两档：可读正文 / 只有密文的"加密思考"（codex 的 encrypted_content）。
+  // 加密思考照样有起止时间，只是正文拿不到；统计与页面都要单独标出，不能算成"无文本"。
+  const reasoningStats = (step) => {
+    let readable = 0, encrypted = 0, encryptedCount = 0;
+    for (const span of step.reasoning || []) {
+      const ms = Math.max(0, (span.endMs ?? 0) - (span.startMs ?? 0));
+      if (span.encrypted) { encrypted += ms; encryptedCount += 1; } else { readable += ms; }
+    }
+    return { readable, encrypted, encryptedCount };
+  };
+  const REASONING = { readable: 0, encrypted: 0, encryptedCount: 0 };
+  for (const turn of turns) {
+    for (const step of turn.steps) {
+      const item = reasoningStats(step);
+      REASONING.readable += item.readable;
+      REASONING.encrypted += item.encrypted;
+      REASONING.encryptedCount += item.encryptedCount;
+    }
+  }
 
   const recDur = (rec) => rec.kind === 'tool'
     ? (rec.tool.durationMs ?? 0)
@@ -234,7 +257,10 @@
   }
   metric('活跃', fmtMs(stats.busyMs), 'muted', '所有模型片段 + 工具片段的并集');
   metric('模型调用', stats.steps + ' 次 · ' + fmtMs(stats.modelMs), 'model', '思考 + 生成的并集，不含工具执行');
-  metric('其中思考', fmtMs(stats.reasoningMs), 'model');
+  metric('其中思考', REASONING.encrypted > 0
+      ? fmtMs(REASONING.readable) + ' · 加密 ' + fmtMs(REASONING.encrypted)
+      : fmtMs(REASONING.readable), 'model',
+    REASONING.encryptedCount > 0 ? REASONING.encryptedCount + ' 段加密思考只有区间，正文本地不可读' : '');
   metric('工具调用', stats.toolCalls + ' 次 · ' + fmtMs(stats.toolMs), 'tool', '不含 question 的等待人工');
   metric('等待人工', fmtMs(stats.waitHumanMs), 'wait', 'question 工具：等用户回答');
   metric('空闲', fmtMs(stats.idleMs), 'muted', '相邻活动之间没有任何记录的时间');
@@ -249,7 +275,7 @@
     const legend = el('div', 'legend-inline');
     const items = [
       { kind: 'user', label: '输入' },
-      { kind: 'model', label: '模型（浅=思考 深=生成）' },
+      { kind: 'model', label: '模型（浅=思考 深=生成 斜纹=加密思考）' },
       { kind: 'tool', label: '工具' },
       { kind: 'wait', label: '等待人工' },
       { kind: 'error', label: '报错' },
@@ -413,6 +439,7 @@
       bar.className = 'bar';
       bar.dataset.kind = rec.kind;
       bar.dataset.key = rec.key;
+      if (rec.kind === 'model' && rec.encrypted) bar.dataset.encrypted = 'true';
       if (rec.status === 'error') bar.dataset.status = 'error';
       if (rec.status === 'running') bar.dataset.status = 'running';
       if (rec.kind === 'tool' && rec.wait) bar.dataset.wait = 'true';
@@ -552,7 +579,11 @@
   function modelPreview(step) {
     const text = step.texts.map((t) => t.text).join('\n').trim();
     if (text) return oneLine(text, 200);
-    if (step.reasoning.length > 0) return '（仅思考）' + oneLine(step.reasoning.map((r) => r.text).join(' '), 180);
+    if (step.reasoning.length > 0) {
+      const readable = step.reasoning.map((r) => r.text).filter(Boolean).join(' ');
+      if (readable) return '（仅思考）' + oneLine(readable, 180);
+      return '（加密思考 ' + step.reasoning.length + ' 段，本地不可读）';
+    }
     if (step.tools.length > 0) return '（仅工具调用）';
     return '无内容';
   }
@@ -699,10 +730,11 @@
         std.colSpan = 3;
         const sin = el('div', 'step-inner');
         sin.appendChild(el('span', 'step-name', '第 ' + step.index + ' 步'));
-        const noTextParts = step.reasoningMs === 0 && step.textMs === 0;
+        const think = reasoningStats(step);
+        const noTextParts = think.readable === 0 && think.encrypted === 0 && step.textMs === 0;
         const bits = noTextParts
           ? ['无 reasoning/text part']
-          : ['思考 ' + fmtMs(step.reasoningMs), '生成 ' + fmtMs(step.textMs)];
+          : ['思考 ' + fmtMs(step.reasoningMs) + (think.encrypted > 0 ? '（其中加密 ' + fmtMs(think.encrypted) + '）' : ''), '生成 ' + fmtMs(step.textMs)];
         if (step.modelMs !== null) {
           const gap = modelGapMs(step);
           const note = step.modelSpanSource === 'tool-gap' ? '（step 起点→首个工具）' : gap > 0 ? '（含无文本 ' + fmtMs(gap) + '）' : '';
@@ -921,9 +953,10 @@
       const modelGap = (DATA.turns || []).reduce(
         (sum, turn) => sum + (turn.steps || []).reduce((inner, step) => inner + modelGapMs(step), 0), 0);
       const parts = [
-        { kind: 'think', label: '模型 · 思考', value: stats.reasoningMs },
+        { kind: 'think', label: '模型 · 思考（可读）', value: REASONING.readable },
+        { kind: 'think-encrypted', label: '模型 · 思考（加密）', value: REASONING.encrypted },
         { kind: 'decode', label: '模型 · 生成', value: stats.textMs },
-        { kind: 'think-muted', label: '模型 · 思考（无文本）', value: modelGap },
+        { kind: 'think-muted', label: '模型 · 无文本', value: modelGap },
         { kind: 'tool', label: '工具执行', value: stats.toolMs },
         { kind: 'wait', label: '等待人工（question）', value: stats.waitHumanMs },
         { kind: 'compaction', label: '上下文压缩', value: stats.compactionMs },
@@ -942,7 +975,7 @@
       for (const part of parts) {
         const row = el('div', 'legend-row');
         const dot = el('span', 'legend-dot');
-        dot.style.background = 'var(--' + (part.kind === 'think' ? 'assistant-think' : part.kind === 'think-muted' ? 'label-secondary' : part.kind === 'decode' ? 'assistant-decode' : part.kind === 'tool' ? 'state-warn-label' : part.kind === 'wait' ? 'wait-color' : 'label-tertiary') + ')';
+        dot.style.background = 'var(--' + (part.kind === 'think' ? 'assistant-think' : part.kind === 'think-encrypted' ? 'label-tertiary' : part.kind === 'think-muted' ? 'label-secondary' : part.kind === 'decode' ? 'assistant-decode' : part.kind === 'tool' ? 'state-warn-label' : part.kind === 'wait' ? 'wait-color' : 'label-tertiary') + ')';
         row.appendChild(dot);
         row.appendChild(el('span', '', part.label));
         row.appendChild(el('span', 'legend-value', fmtMs(part.value)));
@@ -1144,7 +1177,11 @@
         put('开始', fmtClock(rec.t0));
         put('结束', fmtClock(rec.t1));
         const gap = modelGapMs(rec.step);
-        put('模型耗时', fmtMs(rec.step.modelMs) + '（思考 ' + fmtMs(rec.step.reasoningMs) + ' + 生成 ' + fmtMs(rec.step.textMs) +
+        const think = reasoningStats(rec.step);
+        const thinkLabel = think.encrypted > 0
+          ? fmtMs(rec.step.reasoningMs) + '（加密 ' + fmtMs(think.encrypted) + '）'
+          : fmtMs(rec.step.reasoningMs);
+        put('模型耗时', fmtMs(rec.step.modelMs) + '（思考 ' + thinkLabel + ' + 生成 ' + fmtMs(rec.step.textMs) +
           (gap > 0 ? ' + 无文本 ' + fmtMs(gap) : '') + '）', 'num');
         put('步骤总时长', fmtMs(rec.step.stepMs) + '（含工具）', 'num');
         if (rec.step.tokens) {
@@ -1183,7 +1220,18 @@
         } });
         tabDefs.push({ id: 'thinking', label: '思考', count: rec.step.reasoning.length, build: () => {
           const wrap = el('div');
-          wrap.appendChild(el('pre', 'pre', rec.step.reasoning.map((r) => r.text).join('\n\n') || '（无思考内容）'));
+          const spans = rec.step.reasoning || [];
+          if (spans.length === 0) {
+            wrap.appendChild(el('p', 'hint', '本步没有思考记录'));
+            return wrap;
+          }
+          const blocks = spans.map((span) => span.encrypted
+            ? '〔加密思考 ' + fmtMs(span.endMs - span.startMs) + ' · 服务端只回密文，正文本地不可读〕'
+            : span.text);
+          wrap.appendChild(el('pre', 'pre', blocks.join('\n\n')));
+          if (spans.some((span) => span.encrypted)) {
+            wrap.appendChild(el('p', 'hint', '加密思考的区间与密文都来自 codex 的 encrypted_content；解密密钥在服务端，导出与页面都拿不到正文。'));
+          }
           return wrap;
         } });
         tabDefs.push({ id: 'output', label: '原始输出', build: () => {
@@ -1347,7 +1395,9 @@
     if (rec.kind === 'tool') lines.push(esc(toolSummary(rec.tool)));
     if (rec.kind === 'model') {
       const gap = modelGapMs(rec.step);
-      lines.push('思考 ' + fmtMs(rec.step.reasoningMs) + ' · 生成 ' + fmtMs(rec.step.textMs) + (gap > 0 ? ' · 无文本 ' + fmtMs(gap) : ''));
+      const think = reasoningStats(rec.step);
+      lines.push('思考 ' + fmtMs(rec.step.reasoningMs) + (think.encrypted > 0 ? '（加密 ' + fmtMs(think.encrypted) + '）' : '') +
+        ' · 生成 ' + fmtMs(rec.step.textMs) + (gap > 0 ? ' · 无文本 ' + fmtMs(gap) : ''));
     }
     if (rec.t1 !== null && rec.t1 > rec.t0) {
       lines.push(fmtClock(rec.t0) + ' → ' + fmtClock(rec.t1));

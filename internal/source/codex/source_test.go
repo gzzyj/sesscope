@@ -148,6 +148,21 @@ func TestRolloutModelSpans(t *testing.T) {
 	if len(toolStep.ModelSpans) != 1 || toolStep.ModelSpans[0] != (session.ModelSpan{StartMs: base + 100, EndMs: base + 400}) {
 		t.Errorf("工具步骤的模型区间 = %+v", toolStep.ModelSpans)
 	}
+	var encrypted *session.Part
+	for index := range toolStep.Parts {
+		if toolStep.Parts[index].Kind == session.PartReasoning {
+			encrypted = &toolStep.Parts[index]
+		}
+	}
+	if encrypted == nil || encrypted.Encrypted == nil || !*encrypted.Encrypted {
+		t.Fatalf("加密思考应保留成部件并标注 encrypted：%+v", toolStep.Parts)
+	}
+	if encrypted.Text != nil {
+		t.Errorf("加密思考不该有正文：%q", *encrypted.Text)
+	}
+	if encrypted.StartMs == nil || *encrypted.StartMs != base+100 || encrypted.EndMs == nil || *encrypted.EndMs != base+400 {
+		t.Errorf("加密思考区间 = %v..%v，期望 %d..%d", encrypted.StartMs, encrypted.EndMs, base+100, base+400)
+	}
 	if len(textStep.ModelSpans) != 1 || textStep.ModelSpans[0] != (session.ModelSpan{StartMs: base + 500, EndMs: base + 900}) {
 		t.Errorf("文本步骤的模型区间 = %+v", textStep.ModelSpans)
 	}

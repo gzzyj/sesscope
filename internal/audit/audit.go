@@ -161,8 +161,9 @@ func auditPart(part *session.Part, caps source.Capabilities, encryptedReasoning 
 			violation("part.text", ScopePart, label+"（text 部件没有内容）")
 		}
 	case session.PartReasoning:
-		if (part.Text == nil || *part.Text == "") && !encryptedReasoning {
-			note("part.text", ScopePart, label+"（reasoning 部件没有内容，也没有 encrypted-reasoning 诊断）")
+		encrypted := part.Encrypted != nil && *part.Encrypted
+		if (part.Text == nil || *part.Text == "") && !encrypted && !encryptedReasoning {
+			note("part.text", ScopePart, label+"（reasoning 部件没有内容，也没有加密标注）")
 		}
 	case session.PartToolCall:
 		auditTool(part, caps, label, violation, note)

@@ -49,6 +49,7 @@ dsh 的 `session-<uuid>` 目录名、codex 的 rollout 文件名与记录里的 
 | Message.Tokens{Total, Input, Output, Reasoning, CacheRead, CacheWrite} | 每步用量 |
 | Part.Kind | text / reasoning / tool-call / tool-result / compaction / file / step-start / step-finish / other |
 | Part.Type | 原生类型原文（页面 Timeline 需要原样输出） |
+| Part.Encrypted | 内容存在但不可读（如 codex 的 encrypted_content）：有区间、无正文，页面标注「加密」 |
 | Part.CreatedMs / UpdatedMs | 落库/更新时间 |
 | Part.StartMs / EndMs | **有效执行区间**（文本取载荷 time，工具取 state/事件时间） |
 | Part.DurationMs | 源声明的时长（压缩段等） |

@@ -161,19 +161,22 @@ type ToolCall struct {
 // StartMs/EndMs 是"有效执行区间"：文本/思考来自载荷里的 time.start/end，
 // 工具来自工具状态里的 time；与 CreatedMs/UpdatedMs（落库/更新时间）不是一回事。
 type Part struct {
-	ID         string    `json:"id"`
-	Kind       PartKind  `json:"kind"`
-	Type       string    `json:"type"`
-	CreatedMs  *int64    `json:"created_ms,omitempty"`
-	UpdatedMs  *int64    `json:"updated_ms,omitempty"`
-	StartMs    *int64    `json:"start_ms,omitempty"`
-	EndMs      *int64    `json:"end_ms,omitempty"`
-	DurationMs *int64    `json:"duration_ms,omitempty"`
-	Text       *string   `json:"text,omitempty"`
-	Synthetic  *bool     `json:"synthetic,omitempty"`
-	Auto       *bool     `json:"auto,omitempty"`
-	File       *FileRef  `json:"file,omitempty"`
-	Tool       *ToolCall `json:"tool,omitempty"`
+	ID         string   `json:"id"`
+	Kind       PartKind `json:"kind"`
+	Type       string   `json:"type"`
+	CreatedMs  *int64   `json:"created_ms,omitempty"`
+	UpdatedMs  *int64   `json:"updated_ms,omitempty"`
+	StartMs    *int64   `json:"start_ms,omitempty"`
+	EndMs      *int64   `json:"end_ms,omitempty"`
+	DurationMs *int64   `json:"duration_ms,omitempty"`
+	Text       *string  `json:"text,omitempty"`
+	// Encrypted 表示"这段内容源里存在但不可读"（例如 codex 的 encrypted_content）：
+	// 时间、类型都在，正文拿不到，页面要如实标注，不能当成空内容丢掉。
+	Encrypted *bool     `json:"encrypted,omitempty"`
+	Synthetic *bool     `json:"synthetic,omitempty"`
+	Auto      *bool     `json:"auto,omitempty"`
+	File      *FileRef  `json:"file,omitempty"`
+	Tool      *ToolCall `json:"tool,omitempty"`
 }
 
 // TurnHint 是源自带的轮次/步骤编号（有的产品有，有的只能派生）。

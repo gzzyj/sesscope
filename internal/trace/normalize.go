@@ -173,6 +173,8 @@ type Span struct {
 	StartMs int64  `json:"startMs"`
 	EndMs   int64  `json:"endMs"`
 	Text    string `json:"text"`
+	// Encrypted：这段内容源里存在但不可读（只有密文/加密块），Text 为空是预期行为。
+	Encrypted bool `json:"encrypted,omitempty"`
 }
 
 // Tool 是一次工具调用。TurnIndex/StepIndex 只供内部提示文案使用，不写进页面数据。
@@ -713,6 +715,9 @@ func normalizeStep(message session.Message, parts []session.Part, index, turnInd
 				span := Span{StartMs: *start, EndMs: *end}
 				if part.Text != nil {
 					span.Text = *part.Text
+				}
+				if part.Encrypted != nil && *part.Encrypted {
+					span.Encrypted = true
 				}
 				if part.Kind == session.PartReasoning {
 					step.Reasoning = append(step.Reasoning, span)

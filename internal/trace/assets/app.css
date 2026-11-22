@@ -341,6 +341,13 @@ button { font-family: inherit; }
     var(--assistant-decode) 100%
   );
 }
+.bar[data-kind='model'][data-encrypted='true'] {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--assistant-think) 0 3px,
+    color-mix(in srgb, var(--assistant-think) 30%, var(--bg-layer-2)) 3px 6px
+  );
+}
 .bar[data-kind='tool'] { background: var(--state-warn-label); opacity: 1; }
 .bar[data-kind='tool'][data-wait='true'] { background: var(--wait-color); }
 .bar[data-kind='compaction'],
@@ -796,6 +803,10 @@ dl.overview dd.muted { color: var(--label-caption); }
 .compo-seg { height: 100%; min-width: 1px; }
 .compo-seg[data-kind='think'] { background: var(--assistant-think); }
 .compo-seg[data-kind='think-muted'] { background: color-mix(in srgb, var(--assistant-think) 34%, transparent); }
+.compo-seg[data-kind='think-encrypted'] {
+  background-color: color-mix(in srgb, var(--assistant-think) 20%, transparent);
+  background-image: repeating-linear-gradient(45deg, color-mix(in srgb, var(--assistant-think) 68%, transparent) 0 3px, transparent 3px 7px);
+}
 .compo-seg[data-kind='decode'] { background: var(--assistant-decode); }
 .compo-seg[data-kind='tool'] { background: var(--state-warn-label); }
 .compo-seg[data-kind='wait'] { background: var(--wait-color); }
