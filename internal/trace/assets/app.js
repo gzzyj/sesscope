@@ -22,8 +22,12 @@
       const s = (v % 60000) / 1000;
       return sign + m + ' m ' + (s >= 0.05 ? s.toFixed(1) + ' s' : '');
     }
-    const h = Math.floor(v / 3600000);
-    const m = Math.round((v % 3600000) / 60000);
+    let h = Math.floor(v / 3600000);
+    let m = Math.round((v % 3600000) / 60000);
+    if (m === 60) {
+      h += 1;
+      m = 0;
+    }
     return sign + h + ' h ' + (m > 0 ? m + ' m' : '');
   }
   function fmtShort(ms) {

@@ -384,10 +384,10 @@ func (m *mapper) applyToolCall(env envelope) {
 		call.Args = args
 		call.Kind, call.Target, call.Command = toolsem.Classify(session.DSH, data.Name, args)
 	}
-	if call.StartMs == nil {
-		call.StartMs = session.I64(env.Time)
-		message.Parts[ref.part].StartMs = call.StartMs
-	}
+	// tool/call 事件是工具真正开始执行的时刻；assistant/message 里的块时间只是
+	// 模型开始吐 tool-call 块的时间，用它当工具起点会和模型区间重叠。
+	call.StartMs = session.I64(env.Time)
+	message.Parts[ref.part].StartMs = call.StartMs
 }
 
 func (m *mapper) applyToolResult(env envelope) {

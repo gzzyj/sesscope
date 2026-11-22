@@ -794,15 +794,24 @@ func normalizeStep(message session.Message, parts []session.Part, index, turnInd
 // 这两路都不存在时，才退回"step 起点 → 首个工具开始"的估算（只有工具调用的源）。
 func applyModelSpan(step *Step, recorded []session.ModelSpan) {
 	var starts, ends []int64
+	segments := make([]Span, 0, len(step.Reasoning)+len(step.Texts)+len(recorded))
 	fromParts, fromEvents := false, false
+	addSegment := func(start, end int64) {
+		if end < start {
+			return
+		}
+		segments = append(segments, Span{StartMs: start, EndMs: end})
+	}
 	for _, span := range step.Reasoning {
 		starts = append(starts, span.StartMs)
 		ends = append(ends, span.EndMs)
+		addSegment(span.StartMs, span.EndMs)
 		fromParts = true
 	}
 	for _, span := range step.Texts {
 		starts = append(starts, span.StartMs)
 		ends = append(ends, span.EndMs)
+		addSegment(span.StartMs, span.EndMs)
 		fromParts = true
 	}
 	for _, span := range recorded {
@@ -811,14 +820,8 @@ func applyModelSpan(step *Step, recorded []session.ModelSpan) {
 		}
 		starts = append(starts, span.StartMs)
 		ends = append(ends, span.EndMs)
+		addSegment(span.StartMs, span.EndMs)
 		fromEvents = true
-	}
-	segments := make([]Span, 0, len(recorded))
-	for _, span := range recorded {
-		if span.EndMs < span.StartMs {
-			continue
-		}
-		segments = append(segments, Span{StartMs: span.StartMs, EndMs: span.EndMs})
 	}
 	if len(starts) > 0 {
 		start, end := starts[0], ends[0]

@@ -149,7 +149,7 @@ func TestGoldenStats(t *testing.T) {
 		"toolCalls":    65,
 		"errors":       2,
 		"running":      1,
-		"modelMs":      778791,
+		"modelMs":      778597,
 		"reasoningMs":  562872,
 		"toolMs":       8317,
 		"waitHumanMs":  990725,

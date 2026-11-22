@@ -30,15 +30,15 @@
     "errorTools": 0,
     "running": 1,
     "toolRunning": 1,
-    "modelMs": 778791,
+    "modelMs": 778597,
     "reasoningMs": 562872,
     "textMs": 138388,
     "toolMs": 8317,
     "waitHumanMs": 990725,
     "stepMs": 2040754,
     "compactionMs": 81714,
-    "busyMs": 1778285,
-    "idleMs": 173733088,
+    "busyMs": 1778095,
+    "idleMs": 173733278,
     "tokens": {
       "input": 439969,
       "output": 14197,
@@ -98,7 +98,7 @@
     {
       "level": "info",
       "code": "idle-gaps",
-      "title": "95 处空闲（相邻活动之间无任何模型/工具记录，其中 2 处 >60s 会在时间轴上折叠）",
+      "title": "145 处空闲（相邻活动之间无任何模型/工具记录，其中 2 处 >60s 会在时间轴上折叠）",
       "detail": "最长空闲 48.2 h（2026-11-18T07:51:23.085Z 起）。时间轴默认把 >60s 的空闲折叠成 20px 断口（可切到「实际时间」看真实跨度）。"
     },
     {
@@ -155,7 +155,19 @@
           "stepMs": 6807,
           "modelStartMs": 1794986410993,
           "modelEndMs": 1794986415384,
-          "modelMs": 4391,
+          "modelMs": 4387,
+          "modelSpans": [
+            {
+              "startMs": 1794986410993,
+              "endMs": 1794986415008,
+              "text": ""
+            },
+            {
+              "startMs": 1794986415012,
+              "endMs": 1794986415384,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 4015,
           "textMs": 372,
@@ -236,7 +248,19 @@
           "stepMs": 8690,
           "modelStartMs": 1794986417320,
           "modelEndMs": 1794986422724,
-          "modelMs": 5404,
+          "modelMs": 5402,
+          "modelSpans": [
+            {
+              "startMs": 1794986417320,
+              "endMs": 1794986421869,
+              "text": ""
+            },
+            {
+              "startMs": 1794986421871,
+              "endMs": 1794986422724,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 4549,
           "textMs": 853,
@@ -340,7 +364,19 @@
           "stepMs": 4280,
           "modelStartMs": 1794986426106,
           "modelEndMs": 1794986428206,
-          "modelMs": 2100,
+          "modelMs": 2099,
+          "modelSpans": [
+            {
+              "startMs": 1794986426106,
+              "endMs": 1794986427471,
+              "text": ""
+            },
+            {
+              "startMs": 1794986427472,
+              "endMs": 1794986428206,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 1365,
           "textMs": 734,
@@ -444,7 +480,19 @@
           "stepMs": 4055,
           "modelStartMs": 1794986431747,
           "modelEndMs": 1794986431806,
-          "modelMs": 59,
+          "modelMs": 55,
+          "modelSpans": [
+            {
+              "startMs": 1794986431747,
+              "endMs": 1794986431775,
+              "text": ""
+            },
+            {
+              "startMs": 1794986431779,
+              "endMs": 1794986431806,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 28,
           "textMs": 27,
@@ -525,7 +573,19 @@
           "stepMs": 4109,
           "modelStartMs": 1794986435391,
           "modelEndMs": 1794986436089,
-          "modelMs": 698,
+          "modelMs": 696,
+          "modelSpans": [
+            {
+              "startMs": 1794986435391,
+              "endMs": 1794986435681,
+              "text": ""
+            },
+            {
+              "startMs": 1794986435683,
+              "endMs": 1794986436089,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 290,
           "textMs": 406,
@@ -606,7 +666,19 @@
           "stepMs": 6728,
           "modelStartMs": 1794986440177,
           "modelEndMs": 1794986442359,
-          "modelMs": 2182,
+          "modelMs": 2180,
+          "modelSpans": [
+            {
+              "startMs": 1794986440177,
+              "endMs": 1794986441722,
+              "text": ""
+            },
+            {
+              "startMs": 1794986441724,
+              "endMs": 1794986442359,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 1545,
           "textMs": 635,
@@ -687,7 +759,19 @@
           "stepMs": 7192,
           "modelStartMs": 1794986449217,
           "modelEndMs": 1794986450371,
-          "modelMs": 1154,
+          "modelMs": 1152,
+          "modelSpans": [
+            {
+              "startMs": 1794986449217,
+              "endMs": 1794986449735,
+              "text": ""
+            },
+            {
+              "startMs": 1794986449737,
+              "endMs": 1794986450371,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 518,
           "textMs": 634,
@@ -768,7 +852,19 @@
           "stepMs": 6063,
           "modelStartMs": 1794986455321,
           "modelEndMs": 1794986456485,
-          "modelMs": 1164,
+          "modelMs": 1162,
+          "modelSpans": [
+            {
+              "startMs": 1794986455321,
+              "endMs": 1794986455754,
+              "text": ""
+            },
+            {
+              "startMs": 1794986455756,
+              "endMs": 1794986456485,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 433,
           "textMs": 729,
@@ -849,7 +945,19 @@
           "stepMs": 8166,
           "modelStartMs": 1794986460452,
           "modelEndMs": 1794986464180,
-          "modelMs": 3728,
+          "modelMs": 3726,
+          "modelSpans": [
+            {
+              "startMs": 1794986460452,
+              "endMs": 1794986463024,
+              "text": ""
+            },
+            {
+              "startMs": 1794986463026,
+              "endMs": 1794986464180,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 2572,
           "textMs": 1154,
@@ -930,7 +1038,19 @@
           "stepMs": 11323,
           "modelStartMs": 1794986467405,
           "modelEndMs": 1794986473754,
-          "modelMs": 6349,
+          "modelMs": 6342,
+          "modelSpans": [
+            {
+              "startMs": 1794986467405,
+              "endMs": 1794986472323,
+              "text": ""
+            },
+            {
+              "startMs": 1794986472330,
+              "endMs": 1794986473754,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 4918,
           "textMs": 1424,
@@ -1011,7 +1131,19 @@
           "stepMs": 5253,
           "modelStartMs": 1794986477662,
           "modelEndMs": 1794986481180,
-          "modelMs": 3518,
+          "modelMs": 3514,
+          "modelSpans": [
+            {
+              "startMs": 1794986477662,
+              "endMs": 1794986480292,
+              "text": ""
+            },
+            {
+              "startMs": 1794986480296,
+              "endMs": 1794986481180,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 2630,
           "textMs": 884,
@@ -1092,7 +1224,19 @@
           "stepMs": 22848,
           "modelStartMs": 1794986486355,
           "modelEndMs": 1794986502985,
-          "modelMs": 16630,
+          "modelMs": 16628,
+          "modelSpans": [
+            {
+              "startMs": 1794986486355,
+              "endMs": 1794986499999,
+              "text": ""
+            },
+            {
+              "startMs": 1794986500001,
+              "endMs": 1794986502985,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 13644,
           "textMs": 2984,
@@ -1173,7 +1317,19 @@
           "stepMs": 4672,
           "modelStartMs": 1794986506533,
           "modelEndMs": 1794986507915,
-          "modelMs": 1382,
+          "modelMs": 1379,
+          "modelSpans": [
+            {
+              "startMs": 1794986506533,
+              "endMs": 1794986506767,
+              "text": ""
+            },
+            {
+              "startMs": 1794986506770,
+              "endMs": 1794986507915,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 234,
           "textMs": 1145,
@@ -1254,7 +1410,19 @@
           "stepMs": 4705,
           "modelStartMs": 1794986510669,
           "modelEndMs": 1794986511867,
-          "modelMs": 1198,
+          "modelMs": 1196,
+          "modelSpans": [
+            {
+              "startMs": 1794986510669,
+              "endMs": 1794986510945,
+              "text": ""
+            },
+            {
+              "startMs": 1794986510947,
+              "endMs": 1794986511867,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 276,
           "textMs": 920,
@@ -1335,7 +1503,19 @@
           "stepMs": 5181,
           "modelStartMs": 1794986515650,
           "modelEndMs": 1794986517141,
-          "modelMs": 1491,
+          "modelMs": 1489,
+          "modelSpans": [
+            {
+              "startMs": 1794986515650,
+              "endMs": 1794986516080,
+              "text": ""
+            },
+            {
+              "startMs": 1794986516082,
+              "endMs": 1794986517141,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 430,
           "textMs": 1059,
@@ -1416,7 +1596,19 @@
           "stepMs": 5769,
           "modelStartMs": 1794986520896,
           "modelEndMs": 1794986524009,
-          "modelMs": 3113,
+          "modelMs": 3110,
+          "modelSpans": [
+            {
+              "startMs": 1794986520896,
+              "endMs": 1794986523165,
+              "text": ""
+            },
+            {
+              "startMs": 1794986523168,
+              "endMs": 1794986524009,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 2269,
           "textMs": 841,
@@ -1520,7 +1712,19 @@
           "stepMs": 7834,
           "modelStartMs": 1794986528674,
           "modelEndMs": 1794986531387,
-          "modelMs": 2713,
+          "modelMs": 2709,
+          "modelSpans": [
+            {
+              "startMs": 1794986528674,
+              "endMs": 1794986530465,
+              "text": ""
+            },
+            {
+              "startMs": 1794986530469,
+              "endMs": 1794986531387,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 1791,
           "textMs": 918,
@@ -1601,7 +1805,19 @@
           "stepMs": 4828,
           "modelStartMs": 1794986534065,
           "modelEndMs": 1794986537132,
-          "modelMs": 3067,
+          "modelMs": 3062,
+          "modelSpans": [
+            {
+              "startMs": 1794986534065,
+              "endMs": 1794986536059,
+              "text": ""
+            },
+            {
+              "startMs": 1794986536064,
+              "endMs": 1794986537132,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 1994,
           "textMs": 1068,
@@ -1682,7 +1898,19 @@
           "stepMs": 19855,
           "modelStartMs": 1794986542326,
           "modelEndMs": 1794986555144,
-          "modelMs": 12818,
+          "modelMs": 12807,
+          "modelSpans": [
+            {
+              "startMs": 1794986542326,
+              "endMs": 1794986551986,
+              "text": ""
+            },
+            {
+              "startMs": 1794986551997,
+              "endMs": 1794986555144,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 9660,
           "textMs": 3147,
@@ -1763,7 +1991,19 @@
           "stepMs": 31706,
           "modelStartMs": 1794986560973,
           "modelEndMs": 1794986588238,
-          "modelMs": 27265,
+          "modelMs": 27261,
+          "modelSpans": [
+            {
+              "startMs": 1794986560973,
+              "endMs": 1794986587392,
+              "text": ""
+            },
+            {
+              "startMs": 1794986587396,
+              "endMs": 1794986588238,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 26419,
           "textMs": 842,
@@ -1844,7 +2084,19 @@
           "stepMs": 29076,
           "modelStartMs": 1794986593046,
           "modelEndMs": 1794986614562,
-          "modelMs": 21516,
+          "modelMs": 21512,
+          "modelSpans": [
+            {
+              "startMs": 1794986593046,
+              "endMs": 1794986611536,
+              "text": ""
+            },
+            {
+              "startMs": 1794986611540,
+              "endMs": 1794986614562,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 18490,
           "textMs": 3022,
@@ -1925,7 +2177,19 @@
           "stepMs": 21609,
           "modelStartMs": 1794986621746,
           "modelEndMs": 1794986636856,
-          "modelMs": 15110,
+          "modelMs": 15108,
+          "modelSpans": [
+            {
+              "startMs": 1794986621746,
+              "endMs": 1794986633346,
+              "text": ""
+            },
+            {
+              "startMs": 1794986633348,
+              "endMs": 1794986636856,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 11600,
           "textMs": 3508,
@@ -2006,7 +2270,19 @@
           "stepMs": 5452,
           "modelStartMs": 1794986641296,
           "modelEndMs": 1794986642619,
-          "modelMs": 1323,
+          "modelMs": 1316,
+          "modelSpans": [
+            {
+              "startMs": 1794986641296,
+              "endMs": 1794986641425,
+              "text": ""
+            },
+            {
+              "startMs": 1794986641432,
+              "endMs": 1794986642619,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 129,
           "textMs": 1187,
@@ -2087,7 +2363,19 @@
           "stepMs": 11192,
           "modelStartMs": 1794986650235,
           "modelEndMs": 1794986654584,
-          "modelMs": 4349,
+          "modelMs": 4344,
+          "modelSpans": [
+            {
+              "startMs": 1794986650235,
+              "endMs": 1794986652298,
+              "text": ""
+            },
+            {
+              "startMs": 1794986652303,
+              "endMs": 1794986654584,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 2063,
           "textMs": 2281,
@@ -2168,7 +2456,19 @@
           "stepMs": 5293,
           "modelStartMs": 1794986658764,
           "modelEndMs": 1794986660172,
-          "modelMs": 1408,
+          "modelMs": 1405,
+          "modelSpans": [
+            {
+              "startMs": 1794986658764,
+              "endMs": 1794986659091,
+              "text": ""
+            },
+            {
+              "startMs": 1794986659094,
+              "endMs": 1794986660172,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 327,
           "textMs": 1078,
@@ -2249,7 +2549,19 @@
           "stepMs": 10048,
           "modelStartMs": 1794986665972,
           "modelEndMs": 1794986670489,
-          "modelMs": 4517,
+          "modelMs": 4512,
+          "modelSpans": [
+            {
+              "startMs": 1794986665972,
+              "endMs": 1794986668592,
+              "text": ""
+            },
+            {
+              "startMs": 1794986668597,
+              "endMs": 1794986670489,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 2620,
           "textMs": 1892,
@@ -2387,7 +2699,19 @@
           "stepMs": 3960,
           "modelStartMs": 1794986677062,
           "modelEndMs": 1794986678772,
-          "modelMs": 1710,
+          "modelMs": 1708,
+          "modelSpans": [
+            {
+              "startMs": 1794986677062,
+              "endMs": 1794986678065,
+              "text": ""
+            },
+            {
+              "startMs": 1794986678067,
+              "endMs": 1794986678772,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 1003,
           "textMs": 705,
@@ -2525,7 +2849,19 @@
           "stepMs": 4859,
           "modelStartMs": 1794986684623,
           "modelEndMs": 1794986686844,
-          "modelMs": 2221,
+          "modelMs": 2219,
+          "modelSpans": [
+            {
+              "startMs": 1794986684623,
+              "endMs": 1794986686246,
+              "text": ""
+            },
+            {
+              "startMs": 1794986686248,
+              "endMs": 1794986686844,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 1623,
           "textMs": 596,
@@ -2606,7 +2942,19 @@
           "stepMs": 26393,
           "modelStartMs": 1794986701450,
           "modelEndMs": 1794986713178,
-          "modelMs": 11728,
+          "modelMs": 11726,
+          "modelSpans": [
+            {
+              "startMs": 1794986701450,
+              "endMs": 1794986712079,
+              "text": ""
+            },
+            {
+              "startMs": 1794986712081,
+              "endMs": 1794986713178,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 10629,
           "textMs": 1097,
@@ -2687,7 +3035,19 @@
           "stepMs": 49459,
           "modelStartMs": 1794986715690,
           "modelEndMs": 1794986760942,
-          "modelMs": 45252,
+          "modelMs": 45247,
+          "modelSpans": [
+            {
+              "startMs": 1794986715690,
+              "endMs": 1794986757877,
+              "text": ""
+            },
+            {
+              "startMs": 1794986757882,
+              "endMs": 1794986760942,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 42187,
           "textMs": 3060,
@@ -2768,7 +3128,19 @@
           "stepMs": 10077,
           "modelStartMs": 1794986765177,
           "modelEndMs": 1794986771994,
-          "modelMs": 6817,
+          "modelMs": 6815,
+          "modelSpans": [
+            {
+              "startMs": 1794986765177,
+              "endMs": 1794986771440,
+              "text": ""
+            },
+            {
+              "startMs": 1794986771442,
+              "endMs": 1794986771994,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 6263,
           "textMs": 552,
@@ -2906,7 +3278,19 @@
           "stepMs": 153240,
           "modelStartMs": 1794986781608,
           "modelEndMs": 1794986789464,
-          "modelMs": 7856,
+          "modelMs": 7852,
+          "modelSpans": [
+            {
+              "startMs": 1794986781608,
+              "endMs": 1794986787874,
+              "text": ""
+            },
+            {
+              "startMs": 1794986787878,
+              "endMs": 1794986789464,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 6266,
           "textMs": 1586,
@@ -2987,7 +3371,19 @@
           "stepMs": 13430,
           "modelStartMs": 1794986938102,
           "modelEndMs": 1794986942076,
-          "modelMs": 3974,
+          "modelMs": 3973,
+          "modelSpans": [
+            {
+              "startMs": 1794986938102,
+              "endMs": 1794986939617,
+              "text": ""
+            },
+            {
+              "startMs": 1794986939618,
+              "endMs": 1794986942076,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 1515,
           "textMs": 2458,
@@ -3068,7 +3464,19 @@
           "stepMs": 9112,
           "modelStartMs": 1794986949087,
           "modelEndMs": 1794986955212,
-          "modelMs": 6125,
+          "modelMs": 6121,
+          "modelSpans": [
+            {
+              "startMs": 1794986949087,
+              "endMs": 1794986954860,
+              "text": ""
+            },
+            {
+              "startMs": 1794986954864,
+              "endMs": 1794986955212,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 5773,
           "textMs": 348,
@@ -3149,7 +3557,19 @@
           "stepMs": 19934,
           "modelStartMs": 1794986957454,
           "modelEndMs": 1794986975147,
-          "modelMs": 17693,
+          "modelMs": 17689,
+          "modelSpans": [
+            {
+              "startMs": 1794986957454,
+              "endMs": 1794986974472,
+              "text": ""
+            },
+            {
+              "startMs": 1794986974476,
+              "endMs": 1794986975147,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 17018,
           "textMs": 671,
@@ -3230,7 +3650,19 @@
           "stepMs": 49700,
           "modelStartMs": 1794986978434,
           "modelEndMs": 1794987024287,
-          "modelMs": 45853,
+          "modelMs": 45846,
+          "modelSpans": [
+            {
+              "startMs": 1794986978434,
+              "endMs": 1794987023635,
+              "text": ""
+            },
+            {
+              "startMs": 1794987023642,
+              "endMs": 1794987024287,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 45201,
           "textMs": 645,
@@ -3368,7 +3800,19 @@
           "stepMs": 853812,
           "modelStartMs": 1794987042380,
           "modelEndMs": 1794987046155,
-          "modelMs": 3775,
+          "modelMs": 3772,
+          "modelSpans": [
+            {
+              "startMs": 1794987042380,
+              "endMs": 1794987043982,
+              "text": ""
+            },
+            {
+              "startMs": 1794987043985,
+              "endMs": 1794987046155,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 1602,
           "textMs": 2170,
@@ -3449,7 +3893,19 @@
           "stepMs": 16896,
           "modelStartMs": 1794987896947,
           "modelEndMs": 1794987910537,
-          "modelMs": 13590,
+          "modelMs": 13587,
+          "modelSpans": [
+            {
+              "startMs": 1794987896947,
+              "endMs": 1794987909553,
+              "text": ""
+            },
+            {
+              "startMs": 1794987909556,
+              "endMs": 1794987910537,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 12606,
           "textMs": 981,
@@ -3587,7 +4043,19 @@
           "stepMs": 6930,
           "modelStartMs": 1794987919495,
           "modelEndMs": 1794987921817,
-          "modelMs": 2322,
+          "modelMs": 2320,
+          "modelSpans": [
+            {
+              "startMs": 1794987919495,
+              "endMs": 1794987920188,
+              "text": ""
+            },
+            {
+              "startMs": 1794987920190,
+              "endMs": 1794987921817,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 693,
           "textMs": 1627,
@@ -3668,7 +4136,19 @@
           "stepMs": 33452,
           "modelStartMs": 1794987927967,
           "modelEndMs": 1794987939147,
-          "modelMs": 11180,
+          "modelMs": 11173,
+          "modelSpans": [
+            {
+              "startMs": 1794987927967,
+              "endMs": 1794987936790,
+              "text": ""
+            },
+            {
+              "startMs": 1794987936797,
+              "endMs": 1794987939147,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 8823,
           "textMs": 2350,
@@ -3749,7 +4229,19 @@
           "stepMs": 13026,
           "modelStartMs": 1794987962626,
           "modelEndMs": 1794987966399,
-          "modelMs": 3773,
+          "modelMs": 3771,
+          "modelSpans": [
+            {
+              "startMs": 1794987962626,
+              "endMs": 1794987964935,
+              "text": ""
+            },
+            {
+              "startMs": 1794987964937,
+              "endMs": 1794987966399,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 2309,
           "textMs": 1462,
@@ -3849,7 +4341,19 @@
           "stepMs": 81646,
           "modelStartMs": 1794987972448,
           "modelEndMs": 1794988052418,
-          "modelMs": 79970,
+          "modelMs": 79966,
+          "modelSpans": [
+            {
+              "startMs": 1794987972448,
+              "endMs": 1794988037017,
+              "text": ""
+            },
+            {
+              "startMs": 1794988037021,
+              "endMs": 1794988052418,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 64569,
           "textMs": 15397,
@@ -3922,7 +4426,19 @@
           "stepMs": 70076,
           "modelStartMs": 1794988055881,
           "modelEndMs": 1794988122476,
-          "modelMs": 66595,
+          "modelMs": 66589,
+          "modelSpans": [
+            {
+              "startMs": 1794988055881,
+              "endMs": 1794988121913,
+              "text": ""
+            },
+            {
+              "startMs": 1794988121919,
+              "endMs": 1794988122476,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 66032,
           "textMs": 557,
@@ -4003,7 +4519,19 @@
           "stepMs": 79912,
           "modelStartMs": 1794988128846,
           "modelEndMs": 1794988202336,
-          "modelMs": 73490,
+          "modelMs": 73487,
+          "modelSpans": [
+            {
+              "startMs": 1794988128846,
+              "endMs": 1794988171915,
+              "text": ""
+            },
+            {
+              "startMs": 1794988171918,
+              "endMs": 1794988202336,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 43069,
           "textMs": 30418,
@@ -4141,7 +4669,19 @@
           "stepMs": 60904,
           "modelStartMs": 1794988228752,
           "modelEndMs": 1794988283085,
-          "modelMs": 54333,
+          "modelMs": 54330,
+          "modelSpans": [
+            {
+              "startMs": 1794988228752,
+              "endMs": 1794988270253,
+              "text": ""
+            },
+            {
+              "startMs": 1794988270256,
+              "endMs": 1794988283085,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 41501,
           "textMs": 12829,
@@ -4215,6 +4755,13 @@
           "modelStartMs": 1795161685644,
           "modelEndMs": 1795161698510,
           "modelMs": 12866,
+          "modelSpans": [
+            {
+              "startMs": 1795161685644,
+              "endMs": 1795161698510,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 12866,
           "textMs": 0,
@@ -4281,6 +4828,13 @@
           "modelStartMs": 1795161720393,
           "modelEndMs": 1795161723423,
           "modelMs": 3030,
+          "modelSpans": [
+            {
+              "startMs": 1795161720393,
+              "endMs": 1795161723423,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 3030,
           "textMs": 0,
@@ -4346,7 +4900,19 @@
           "stepMs": 34721,
           "modelStartMs": 1795161791549,
           "modelEndMs": 1795161812841,
-          "modelMs": 21292,
+          "modelMs": 21288,
+          "modelSpans": [
+            {
+              "startMs": 1795161791549,
+              "endMs": 1795161811702,
+              "text": ""
+            },
+            {
+              "startMs": 1795161811706,
+              "endMs": 1795161812841,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 20153,
           "textMs": 1135,
@@ -4485,6 +5051,13 @@
           "modelStartMs": 1795161825628,
           "modelEndMs": 1795161825708,
           "modelMs": 80,
+          "modelSpans": [
+            {
+              "startMs": 1795161825628,
+              "endMs": 1795161825708,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 80,
           "textMs": 0,
@@ -4554,6 +5127,13 @@
           "modelStartMs": 1795161829059,
           "modelEndMs": 1795161829744,
           "modelMs": 685,
+          "modelSpans": [
+            {
+              "startMs": 1795161829059,
+              "endMs": 1795161829744,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 685,
           "textMs": 0,
@@ -4622,7 +5202,19 @@
           "stepMs": 11990,
           "modelStartMs": 1795161833971,
           "modelEndMs": 1795161841898,
-          "modelMs": 7927,
+          "modelMs": 7924,
+          "modelSpans": [
+            {
+              "startMs": 1795161833971,
+              "endMs": 1795161840303,
+              "text": ""
+            },
+            {
+              "startMs": 1795161840306,
+              "endMs": 1795161841898,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 6332,
           "textMs": 1592,
@@ -4703,7 +5295,19 @@
           "stepMs": 4774,
           "modelStartMs": 1795161845506,
           "modelEndMs": 1795161847635,
-          "modelMs": 2129,
+          "modelMs": 2126,
+          "modelSpans": [
+            {
+              "startMs": 1795161845506,
+              "endMs": 1795161846386,
+              "text": ""
+            },
+            {
+              "startMs": 1795161846389,
+              "endMs": 1795161847635,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 880,
           "textMs": 1246,
@@ -4841,7 +5445,19 @@
           "stepMs": 8152,
           "modelStartMs": 1795161856094,
           "modelEndMs": 1795161860677,
-          "modelMs": 4583,
+          "modelMs": 4581,
+          "modelSpans": [
+            {
+              "startMs": 1795161856094,
+              "endMs": 1795161859137,
+              "text": ""
+            },
+            {
+              "startMs": 1795161859139,
+              "endMs": 1795161860677,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 3043,
           "textMs": 1538,
@@ -4979,7 +5595,19 @@
           "stepMs": 22276,
           "modelStartMs": 1795161870443,
           "modelEndMs": 1795161889608,
-          "modelMs": 19165,
+          "modelMs": 19146,
+          "modelSpans": [
+            {
+              "startMs": 1795161870443,
+              "endMs": 1795161886020,
+              "text": ""
+            },
+            {
+              "startMs": 1795161886039,
+              "endMs": 1795161889608,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 15577,
           "textMs": 3569,
@@ -5117,7 +5745,19 @@
           "stepMs": 25976,
           "modelStartMs": 1795161897112,
           "modelEndMs": 1795161919905,
-          "modelMs": 22793,
+          "modelMs": 22790,
+          "modelSpans": [
+            {
+              "startMs": 1795161897112,
+              "endMs": 1795161903847,
+              "text": ""
+            },
+            {
+              "startMs": 1795161903850,
+              "endMs": 1795161919905,
+              "text": ""
+            }
+          ],
           "modelSpanSource": "parts",
           "reasoningMs": 6735,
           "textMs": 16055,
