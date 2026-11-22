@@ -5,13 +5,17 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || date +%Y%
 GO ?= go
 SESSION ?=
 
-.PHONY: all build fmt vet test lint verify golden demo list export sources doctor audit smoke clean
+.PHONY: all build install fmt vet test lint verify golden demo list export sources doctor audit smoke clean
 
 all: build
 
 ## build: 编译单文件二进制（内嵌 UI 资源）
 build:
 	$(GO) build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o $(BINARY) .
+
+## install: 安装到 go install 的路径（GOBIN，未设置时为 GOPATH/bin）
+install:
+	$(GO) install -trimpath -ldflags "-s -w -X main.version=$(VERSION)" .
 
 ## fmt: 格式检查（有未格式化文件就失败）
 fmt:

@@ -53,6 +53,7 @@ sesscope 的做法是：**先把四个产品的存储都映射成一份领域模
 
 ```bash
 make build            # → out/sesscope（约 10 MB，UI 已内嵌）
+make install          # 装到 go install 的路径（GOBIN，未设置时为 GOPATH/bin），之后直接用 sesscope
 ```
 
 四步走，不需要知道任何存储路径：
