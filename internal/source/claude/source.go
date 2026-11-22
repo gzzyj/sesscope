@@ -865,8 +865,8 @@ func (m *mapper) finalize() {
 	}
 	if m.injected > 0 {
 		m.out.Diagnostics = append(m.out.Diagnostics, session.Diagnostic{
-			Level: "info", Code: "local-command", Title: itoa(m.injected) + " 条本地命令/元信息记录未计入对话",
-			Detail: "claude 把 /exit、<local-command-*> 回显和 isMeta 提示也写成 user 记录；它们已按 system 保存，不参与轮次。",
+			Level: "info", Code: "local-command", Title: itoa(m.injected) + " 条 CLI 回显/元信息记录未计入对话",
+			Detail: "caveat/stdout 回显与 isMeta 提示已按 system 保存，不参与轮次；/exit、/model 这类用户主动调用的命令仍算用户输入。",
 		})
 	}
 	if m.sidechain > 0 {
