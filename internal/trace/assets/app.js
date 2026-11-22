@@ -265,7 +265,7 @@
     REASONING.encryptedCount > 0 ? REASONING.encryptedCount + ' 段加密思考只有区间，正文本地不可读' : '');
   metric('工具调用', stats.toolCalls + ' 次 · ' + fmtMs(stats.toolMs), 'tool', '不含 question 的等待人工');
   metric('等待人工', fmtMs(stats.waitHumanMs), 'wait', 'question 工具：等用户回答');
-  metric('空闲', fmtMs(stats.idleMs), 'muted', '相邻活动之间没有任何记录的时间');
+  metric('空闲', fmtMs(stats.idleMs), 'muted', '没有任何活动记录的时间（含首尾空档），活跃 + 空闲 = 跨时');
   metric('轮次', stats.turns + '（用户 ' + stats.userTurns + '）', 'muted');
   metric('报错/未完成', stats.errors + ' / ' + stats.running, 'error');
   if (EPISODES.length > 0) {
@@ -513,6 +513,7 @@
     const vw = Math.max(1, dom.axis.clientWidth || width);
     const tickCount = clamp(Math.round(vw / 150), 3, 9);
     const spanDays = domain.t1 - domain.t0 > 36 * 3600 * 1000;
+    const shortSpan = domain.t1 - domain.t0 < 60 * 1000;
     const collapsedNodes = p.collapsedNodes();
     const usedPx = [];
     for (let i = 0; i <= tickCount; i++) {
@@ -524,7 +525,8 @@
       if (usedPx.some((other) => Math.abs(other - px) < 26)) continue;
       usedPx.push(px);
       const t = p.tOf(px);
-      const tick = el('span', 'axis-tick', spanDays ? fmtDateTime(t).slice(0, 11) : fmtHms(t));
+      // 短会话用毫秒刻度，否则 4 秒的会话会连续出现 14:51:54 / 14:51:54 这种重复标签。
+      const tick = el('span', 'axis-tick', spanDays ? fmtDateTime(t).slice(0, 11) : shortSpan ? fmtClock(t) : fmtHms(t));
       tick.style.left = ((px / width) * 100).toFixed(4) + '%';
       if (i === 0) tick.style.transform = 'none';
       else if (i === tickCount) {

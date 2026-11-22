@@ -234,6 +234,7 @@ type claudeRecord struct {
 	SessionID         string  `json:"sessionId"`
 	Version           string  `json:"version"`
 	IsSidechain       bool    `json:"isSidechain"`
+	IsMeta            bool    `json:"isMeta"`
 	IsAPIErrorMessage bool    `json:"isApiErrorMessage"`
 	APIErrorStatus    *int64  `json:"apiErrorStatus"`
 	Error             string  `json:"error"`
@@ -341,6 +342,7 @@ type mapper struct {
 	truncated     bool
 	derivedStatus bool
 	sawThinking   bool
+	injected      int
 }
 
 func (m *mapper) handle(number int, line []byte) error {
@@ -359,10 +361,21 @@ func (m *mapper) handle(number int, line []byte) error {
 	case "system":
 		if record.Subtype == "turn_duration" && m.lastAssistant >= 0 && record.DurationMs != nil {
 			completed := at
-			if m.out.Messages[m.lastAssistant].CreatedMs != nil {
-				completed = *m.out.Messages[m.lastAssistant].CreatedMs + *record.DurationMs
+			message := &m.out.Messages[m.lastAssistant]
+			if message.CreatedMs != nil {
+				completed = *message.CreatedMs + *record.DurationMs
 			}
-			m.out.Messages[m.lastAssistant].CompletedMs = session.I64(completed)
+			message.CompletedMs = session.I64(completed)
+			message.UpdatedMs = session.I64(completed)
+			for position := range message.Parts {
+				part := &message.Parts[position]
+				// 文本/思考的起止在记录里是同一个写入时刻；turn_duration 给了整段耗时，
+				// 用它把结束时间补到消息完成时刻，模型泳道才有真实宽度。
+				if part.StartMs != nil && part.EndMs != nil && *part.EndMs == *part.StartMs {
+					part.EndMs = session.I64(completed)
+					part.UpdatedMs = session.I64(completed)
+				}
+			}
 			return nil
 		}
 		if record.Subtype == "api_error" {
@@ -420,7 +433,15 @@ func (m *mapper) applyUser(record claudeRecord, at int64) {
 	for _, result := range results {
 		m.applyToolResult(result, at)
 	}
-	if !isHuman(record) || len(texts) == 0 {
+	// claude 把 /exit、<local-command-*> 回显、isMeta 的提示也写成 user 记录。
+	// 它们不是人类输入，不能开新一轮；保留成 system 消息，只做记录。
+	if !isHuman(record) || looksLikeLocalCommand(texts) {
+		if len(texts) > 0 {
+			m.appendInjected(record, texts, at)
+		}
+		return
+	}
+	if len(texts) == 0 {
 		return
 	}
 	parts := make([]session.Part, 0, len(texts))
@@ -557,6 +578,54 @@ func (m *mapper) closeOpenAssistant(index int) {
 	}
 }
 
+// appendInjected 把本地命令/元信息记录保留成 system 消息：不进轮次，但导出里能查到。
+func (m *mapper) appendInjected(record claudeRecord, texts []claudeBlock, at int64) {
+	parts := make([]session.Part, 0, len(texts))
+	for index, block := range texts {
+		text := m.clip(block.Text)
+		if strings.TrimSpace(text) == "" {
+			continue
+		}
+		parts = append(parts, session.Part{
+			ID:        record.UUID + "#" + itoa(index),
+			Kind:      session.PartText,
+			Type:      "text",
+			CreatedMs: session.I64(at),
+			UpdatedMs: session.I64(at),
+			Text:      &text,
+			Synthetic: session.Bool(true),
+		})
+	}
+	if len(parts) == 0 {
+		return
+	}
+	id := record.UUID
+	if id == "" {
+		id = "system-" + itoa(len(m.out.Messages))
+	}
+	m.out.Messages = append(m.out.Messages, session.Message{
+		ID:          id,
+		Role:        session.RoleSystem,
+		PayloadRole: session.Str("system"),
+		CreatedMs:   session.I64(at),
+		UpdatedMs:   session.I64(at),
+		Synthetic:   true,
+		Parts:       parts,
+	})
+	m.injected++
+}
+
+// looksLikeLocalCommand 识别 claude CLI 的本地命令回显（不是用户提示词）。
+func looksLikeLocalCommand(blocks []claudeBlock) bool {
+	for _, block := range blocks {
+		text := strings.TrimSpace(block.Text)
+		if strings.HasPrefix(text, "<local-command-") || strings.HasPrefix(text, "<command-") {
+			return true
+		}
+	}
+	return false
+}
+
 func (m *mapper) applyToolResult(block claudeBlock, at int64) {
 	ref, ok := m.tools[block.ToolUseID]
 	if !ok {
@@ -595,6 +664,12 @@ func (m *mapper) finalize() {
 		m.out.Diagnostics = append(m.out.Diagnostics, session.Diagnostic{
 			Level: "info", Code: "no-reasoning", Title: "本会话没有思考记录",
 			Detail: "claude 只有开启思考时才会写 thinking 块；没有就是不显示。",
+		})
+	}
+	if m.injected > 0 {
+		m.out.Diagnostics = append(m.out.Diagnostics, session.Diagnostic{
+			Level: "info", Code: "local-command", Title: itoa(m.injected) + " 条本地命令/元信息记录未计入对话",
+			Detail: "claude 把 /exit、<local-command-*> 回显和 isMeta 提示也写成 user 记录；它们已按 system 保存，不参与轮次。",
 		})
 	}
 	if m.truncated {
@@ -655,7 +730,7 @@ func decodeMessage(raw json.RawMessage) (claudeMessage, []claudeBlock, error) {
 }
 
 func isHuman(record claudeRecord) bool {
-	if record.IsAPIErrorMessage || record.IsSidechain {
+	if record.IsAPIErrorMessage || record.IsSidechain || record.IsMeta {
 		return false
 	}
 	if record.Origin != nil {

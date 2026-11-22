@@ -266,6 +266,16 @@ func Normalize(s *session.Session, opts Options) (*Data, error) {
 
 	busy := activityIntervals(allSteps, allTools, turns)
 	firstMs, lastMs := activityBounds(allSteps, allTools, turns)
+	// 空闲 = 跨时里没有活动记录的部分（含首尾空档）。以前只算"两个活动之间"，
+	// 导致「活跃 + 空闲 ≠ 跨时」，短会话尤其明显（比如 1.97s + 0 vs 3.91s）。
+	busyMs := sumIntervals(busy)
+	idleMs := int64(0)
+	if firstMs != nil && lastMs != nil && *lastMs > *firstMs {
+		idleMs = *lastMs - *firstMs - busyMs
+		if idleMs < 0 {
+			idleMs = 0
+		}
+	}
 
 	runningSteps, errorSteps := statusIndexes(allSteps)
 	runningTools := toolIndexesWithStatus(allTools, "running")
@@ -279,6 +289,16 @@ func Normalize(s *session.Session, opts Options) (*Data, error) {
 
 	warnings = append(warnings, structureWarnings(allSteps, allTools, busy, runningSteps, errorSteps, toolErrorIndexes, humanWaits)...)
 	warnings = append(warnings, reconciliationWarnings(s, allTools, humanWaits)...)
+	// 适配器产出的诊断（缺能力、加密、空会话、本地命令……）以前只进导出 JSON，
+	// 页面看不到；这里原样带进「数据提示」，保持两条通道口径一致。
+	for _, diagnostic := range s.Diagnostics {
+		warnings = append(warnings, Warning{
+			Level:  diagnostic.Level,
+			Code:   diagnostic.Code,
+			Title:  diagnostic.Title,
+			Detail: diagnostic.Detail,
+		})
+	}
 
 	data := &Data{
 		Meta: Meta{
@@ -315,8 +335,8 @@ func Normalize(s *session.Session, opts Options) (*Data, error) {
 			WaitHumanMs:  sumTools(humanWaits, func(tool Tool) (int64, bool) { return derefInt64(tool.DurationMs), true }),
 			StepMs:       sumSteps(allSteps, func(step Step) *int64 { return step.StepMs }),
 			CompactionMs: sumCompaction(turns),
-			BusyMs:       sumIntervals(busy),
-			IdleMs:       sumIntervals(gapsOf(busy)),
+			BusyMs:       busyMs,
+			IdleMs:       idleMs,
 			Tokens: Tokens{
 				Input:      sumTokens(allSteps, func(tokens *StepTokens) *int64 { return tokens.Input }),
 				Output:     sumTokens(allSteps, func(tokens *StepTokens) *int64 { return tokens.Output }),
@@ -401,6 +421,17 @@ func activityBounds(steps []Step, tools []Tool, turns []Turn) (first, last *int6
 	}
 	for _, tool := range tools {
 		last = maxInt64Ptr(last, tool.EndMs)
+	}
+	// 只有用户输入、还没有回复的轮次（例如输入完就退出）也要落在时间轴范围内，
+	// 否则它的 StartMs 会被丢掉，跨时/空闲都算不到它。
+	// 注意：有步骤但没结束时间的轮次不能用 turn.EndMs（那是补出来的 StartMs），
+	// 否则会把"未知结束"误标成已知。
+	for _, turn := range turns {
+		if len(turn.Steps) != 0 {
+			continue
+		}
+		last = maxInt64Ptr(last, turn.StartMs)
+		last = maxInt64Ptr(last, turn.EndMs)
 	}
 	return first, last
 }

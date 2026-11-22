@@ -38,7 +38,7 @@
     "stepMs": 2040754,
     "compactionMs": 81714,
     "busyMs": 1778285,
-    "idleMs": 173735357,
+    "idleMs": 173733088,
     "tokens": {
       "input": 439969,
       "output": 14197,

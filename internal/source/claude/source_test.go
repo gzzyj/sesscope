@@ -105,3 +105,68 @@ func TestClaudeMapping(t *testing.T) {
 		t.Fatalf("工具数 = %d", tools)
 	}
 }
+
+// TestClaudeLocalCommandsAreNotTurns：/exit、<local-command-*>、isMeta 记录不是人类输入，
+// 不能各开一轮（否则 4 秒的会话会出现 3 个空轮次）。
+func TestClaudeLocalCommandsAreNotTurns(t *testing.T) {
+	stamp := "2026-10-28T13:58:53.957Z"
+	records := []map[string]any{
+		{"type": "user", "uuid": "u1", "timestamp": stamp, "origin": map[string]any{"kind": "human"}, "promptSource": "typed",
+			"message": map[string]any{"role": "user", "content": "hi"}},
+		{"type": "assistant", "uuid": "a1", "timestamp": stamp, "message": map[string]any{
+			"role": "assistant", "model": "claude-x", "content": []any{map[string]any{"type": "text", "text": "Hi!"}},
+		}},
+		{"type": "system", "subtype": "turn_duration", "durationMs": 2000, "timestamp": stamp},
+		{"type": "user", "uuid": "u2", "timestamp": stamp, "isMeta": true,
+			"message": map[string]any{"role": "user", "content": "<local-command-caveat>cmd</local-command-caveat>"}},
+		{"type": "user", "uuid": "u3", "timestamp": stamp,
+			"message": map[string]any{"role": "user", "content": "<command-name>/exit</command-name>"}},
+		{"type": "user", "uuid": "u4", "timestamp": stamp,
+			"message": map[string]any{"role": "user", "content": "<local-command-stdout>Bye!</local-command-stdout>"}},
+	}
+	store := writeSession(t, records)
+	summaries, err := New().Sessions(context.Background(), store, source.Query{})
+	if err != nil {
+		t.Fatalf("列会话：%v", err)
+	}
+	opened, err := New().Open(context.Background(), store, summaries[0].Ref, source.OpenOptions{})
+	if err != nil {
+		t.Fatalf("取会话：%v", err)
+	}
+	users, systems := 0, 0
+	var assistant *session.Message
+	for index := range opened.Messages {
+		switch opened.Messages[index].Role {
+		case session.RoleUser:
+			users++
+		case session.RoleSystem:
+			systems++
+		case session.RoleAssistant:
+			assistant = &opened.Messages[index]
+		}
+	}
+	if users != 1 {
+		t.Errorf("user 消息 = %d，期望 1（本地命令不该算人类输入）", users)
+	}
+	if systems != 3 {
+		t.Errorf("system 消息 = %d，期望 3（保留本地命令记录）", systems)
+	}
+	if assistant == nil || assistant.CompletedMs == nil {
+		t.Fatalf("assistant 消息或结束时间缺失：%+v", assistant)
+	}
+	if assistant.CreatedMs == nil || *assistant.CompletedMs != *assistant.CreatedMs+2000 {
+		t.Errorf("结束时间 = %v，期望创建时间 + 2000", assistant.CompletedMs)
+	}
+	if len(assistant.Parts) == 0 || assistant.Parts[0].EndMs == nil || *assistant.Parts[0].EndMs != *assistant.CompletedMs {
+		t.Errorf("文本部件的结束时间没跟着 turn_duration 校准：%+v", assistant.Parts)
+	}
+	found := false
+	for _, diagnostic := range opened.Diagnostics {
+		if diagnostic.Code == "local-command" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("缺少 local-command 诊断：%+v", opened.Diagnostics)
+	}
+}
