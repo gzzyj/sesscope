@@ -68,6 +68,20 @@
 
 **已知缺口**：子 agent 消息暂不并入主会话（诊断 `subagent-messages`）；custom-title 本机无样本，按字段兼容；last-prompt 只扫尾部 64KB。
 
+### 一致性校验（官方 SDK 当基准）
+
+```bash
+npm i --no-save @anthropic-ai/claude-agent-sdk     # 只需装一次（node_modules 已 gitignore）
+make conformance-claude                            # = node tools/claude-sdk-conformance.mjs
+# 或指定 SDK 入口：
+CLAUDE_AGENT_SDK=/path/to/@anthropic-ai/claude-agent-sdk/sdk.mjs node tools/claude-sdk-conformance.mjs
+```
+
+校验内容：会话 id 集合、标题（SDK `summary` vs 我们的截断标题）、目录、创建/最后活动时间，
+以及抽样会话的 assistant 序列、人类输入序列、SDK 返回的注入记录是否都落成了 system 消息。
+SDK 默认不返回 `isMeta` 记录，我们会保留成 system，所以这条只做"覆盖"不做"相等"。
+本机用 SDK `0.3.330` 实测 19/19 会话通过。
+
 ## 6. 版本漂移怎么处理
 
 三层解码：物理层（zstd 多帧/校验/torn tail、sqlite 只读、逐行 JSON）→ 记录层（type 注册表，

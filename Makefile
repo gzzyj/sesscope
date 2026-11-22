@@ -5,7 +5,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || date +%Y%
 GO ?= go
 SESSION ?=
 
-.PHONY: all build install fmt vet test lint verify golden demo list export sources doctor audit smoke clean
+.PHONY: all build install fmt vet test lint verify golden demo list export sources doctor audit conformance-claude smoke clean
 
 all: build
 
@@ -35,6 +35,11 @@ verify: fmt vet test
 ## audit: 字段门禁：检查抽象会话里该有却没有的字段（需本机有会话；有缺口时非 0 退出）
 audit: build
 	$(BINARY) audit -n $${AUDIT_LIMIT:-10}
+
+## conformance-claude: 用官方 Agent SDK 校验 claude 适配器（需先 npm i --no-save @anthropic-ai/claude-agent-sdk）
+conformance-claude: build
+	@command -v node >/dev/null 2>&1 || { echo "需要 node（>=18）"; exit 1; }
+	node tools/claude-sdk-conformance.mjs
 
 ## lint: 可选，装了 staticcheck 才跑
 lint:
