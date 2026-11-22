@@ -20,9 +20,11 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.dirname(HERE);
 const BIN = process.env.SESSCOPE_BIN || path.join(ROOT, 'out', 'sesscope');
 const LIMIT = Number(process.env.CONFORMANCE_LIMIT || '5');
+// 注入文本：CLI 回显/中断标记。slash 命令（<command-name>/exit</command-name>）算用户输入，
+// 所以这里只排除 <local-command-*>，不排除 <command-*>。
 const INJECTED = (text) => {
   const trimmed = String(text || '').trim();
-  return trimmed.startsWith('<local-command-') || trimmed.startsWith('<command-') || trimmed.startsWith('[Request interrupted by user');
+  return trimmed.startsWith('<local-command-') || trimmed.startsWith('[Request interrupted by user');
 };
 
 async function loadSdk() {

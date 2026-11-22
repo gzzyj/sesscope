@@ -147,11 +147,23 @@ func TestClaudeLocalCommandsAreNotTurns(t *testing.T) {
 			assistant = &opened.Messages[index]
 		}
 	}
-	if users != 1 {
-		t.Errorf("user 消息 = %d，期望 1（本地命令不该算人类输入）", users)
+	if users != 2 {
+		t.Errorf("user 消息 = %d，期望 2（hi + /exit；/exit 是用户主动调用）", users)
 	}
-	if systems != 4 {
-		t.Errorf("system 消息 = %d，期望 4（保留本地命令/中断标记）", systems)
+	if systems != 3 {
+		t.Errorf("system 消息 = %d，期望 3（caveat/stdout/中断标记）", systems)
+	}
+	var command *session.Message
+	for index := range opened.Messages {
+		if opened.Messages[index].Role != session.RoleUser {
+			continue
+		}
+		if len(opened.Messages[index].Parts) > 0 && opened.Messages[index].Parts[0].Text != nil && *opened.Messages[index].Parts[0].Text == "/exit" {
+			command = &opened.Messages[index]
+		}
+	}
+	if command == nil {
+		t.Errorf("没有把 /exit 归一成用户输入：%+v", opened.Messages)
 	}
 	if assistant == nil || assistant.CompletedMs == nil {
 		t.Fatalf("assistant 消息或结束时间缺失：%+v", assistant)

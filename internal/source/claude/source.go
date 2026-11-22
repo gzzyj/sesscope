@@ -234,7 +234,7 @@ func summarize(ctx context.Context, path string, store source.Store) session.Sum
 			summary.Flags = append(summary.Flags, "sidechain")
 		}
 		if record.Type == "user" && title == "" && isHuman(record) {
-			if text := humanText(record); text != "" {
+			if text := humanText(record); text != "" && !isCommandText(text) {
 				title = firstLine(text)
 			}
 		}
@@ -528,9 +528,19 @@ func (m *mapper) applyUser(record claudeRecord, at int64) {
 	for _, result := range results {
 		m.applyToolResult(result, at)
 	}
-	// claude 把 /exit、<local-command-*> 回显、isMeta 的提示也写成 user 记录。
-	// 它们不是人类输入，不能开新一轮；保留成 system 消息，只做记录。
-	if !isHuman(record) || looksLikeLocalCommand(texts) {
+	// isMeta 提示、/exit 之外的 CLI 回显不是人类输入：保留成 system 消息，不参与轮次。
+	if !isHuman(record) {
+		if len(texts) > 0 {
+			m.appendInjected(record, texts, at)
+		}
+		return
+	}
+	// 用户主动调用的本地命令（/exit、/model）算用户输入，文本归一成 "/exit"。
+	if command, ok := commandInvocation(texts); ok {
+		m.appendCommand(record, command, at)
+		return
+	}
+	if looksLikeLocalCommand(texts) {
 		if len(texts) > 0 {
 			m.appendInjected(record, texts, at)
 		}
@@ -690,6 +700,65 @@ func (m *mapper) closeOpenAssistant(index int) {
 	}
 }
 
+// commandInvocation 识别 "/exit"、"/model" 这类用户主动调用的本地命令。
+// 记录里的原始文本是 <command-name>/exit</command-name><command-message>… 的 XML，
+// 页面只需要命令名本身。
+func commandInvocation(blocks []claudeBlock) (string, bool) {
+	const open = "<command-name>"
+	const close = "</command-name>"
+	for _, block := range blocks {
+		text := block.Text
+		start := strings.Index(text, open)
+		if start < 0 {
+			continue
+		}
+		rest := text[start+len(open):]
+		end := strings.Index(rest, close)
+		if end < 0 {
+			continue
+		}
+		name := strings.TrimSpace(rest[:end])
+		if name == "" {
+			continue
+		}
+		if !strings.HasPrefix(name, "/") {
+			name = "/" + name
+		}
+		return name, true
+	}
+	return "", false
+}
+
+// appendCommand 把用户调用的本地命令记成一条 user 消息（会开一轮，但没有 assistant 回复）。
+func (m *mapper) appendCommand(record claudeRecord, command string, at int64) {
+	text := m.clip(command)
+	id := record.UUID
+	if id == "" {
+		id = "user-" + itoa(len(m.out.Messages))
+	}
+	hint := session.TurnHint{}
+	if record.TurnPosition != nil {
+		hint.Turn = record.TurnPosition.TurnIndex
+		m.turnIndex = record.TurnPosition.TurnIndex
+	}
+	m.out.Messages = append(m.out.Messages, session.Message{
+		ID:          id,
+		Role:        session.RoleUser,
+		PayloadRole: session.Str("user"),
+		CreatedMs:   session.I64(at),
+		UpdatedMs:   session.I64(at),
+		TurnHint:    hint,
+		Parts: []session.Part{{
+			ID:        id + "#0",
+			Kind:      session.PartText,
+			Type:      "text",
+			CreatedMs: session.I64(at),
+			UpdatedMs: session.I64(at),
+			Text:      &text,
+		}},
+	})
+}
+
 // appendInjected 把本地命令/元信息记录保留成 system 消息：不进轮次，但导出里能查到。
 func (m *mapper) appendInjected(record claudeRecord, texts []claudeBlock, at int64) {
 	parts := make([]session.Part, 0, len(texts))
@@ -740,6 +809,12 @@ func looksLikeLocalCommand(blocks []claudeBlock) bool {
 // looksLikeInjectedText：claude 自己写的“伪 user 文本”。
 //   - <local-command-*> / <command-*>：/exit 等 CLI 操作的回显；
 //   - [Request interrupted by user]：用户中断时补的状态标记。
+//
+// isCommandText：/exit 这类命令的原始 XML（不能当标题）。
+func isCommandText(text string) bool {
+	return strings.Contains(text, "<command-name>")
+}
+
 func looksLikeInjectedText(text string) bool {
 	trimmed := strings.TrimSpace(text)
 	if strings.HasPrefix(trimmed, "<local-command-") || strings.HasPrefix(trimmed, "<command-") {
