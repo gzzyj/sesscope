@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -140,6 +141,62 @@ func (a *Adapter) Sessions(ctx context.Context, store source.Store, q source.Que
 
 const scanLines = 200
 
+// titleTailBytes 是读文件尾部找标题线索的上限（custom-title / last-prompt 都在末尾）。
+const titleTailBytes = 64 << 10
+
+// tailTitles 从 transcript 尾部取标题线索：custom-title（自定义标题）和最近一次 prompt。
+// 官方 SDK 的 summary 优先级是 custom title → 最近 prompt → 自动摘要 → 首条 prompt；
+// 只扫头部拿不到最近 prompt，所以补一次尾部扫描。
+func tailTitles(path string) (custom, last string) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", ""
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return "", ""
+	}
+	start := info.Size() - titleTailBytes
+	if start < 0 {
+		start = 0
+	}
+	if _, err := file.Seek(start, io.SeekStart); err != nil {
+		return "", ""
+	}
+	data, err := io.ReadAll(io.LimitReader(file, titleTailBytes))
+	if err != nil {
+		return "", ""
+	}
+	for _, line := range strings.Split(string(data), string(rune(10))) {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		var record claudeRecord
+		if err := json.Unmarshal([]byte(line), &record); err != nil {
+			continue
+		}
+		if record.Type == "custom-title" {
+			if value := record.customTitleValue(); value != "" {
+				custom = value
+			}
+		}
+		if record.LastPrompt != "" {
+			last = record.LastPrompt
+			continue
+		}
+		if record.Type != "user" || record.sidechain() || record.IsMeta || !isHuman(record) {
+			continue
+		}
+		text := strings.TrimSpace(humanText(record))
+		if text == "" || looksLikeInjectedText(text) {
+			continue
+		}
+		last = text
+	}
+	return custom, last
+}
+
 func summarize(ctx context.Context, path string, store source.Store) session.Summary {
 	summary := session.Summary{
 		Ref:         session.Ref{Source: session.Claude, Store: store.Path, ID: strings.TrimSuffix(filepath.Base(path), ".jsonl"), Object: path},
@@ -183,7 +240,16 @@ func summarize(ctx context.Context, path string, store source.Store) session.Sum
 		}
 		return nil
 	})
-	if title != "" {
+	// 对齐 SDK 的 summary 优先级：custom title → 最近一次 prompt → 首条 prompt。
+	custom, last := tailTitles(path)
+	switch {
+	case strings.TrimSpace(custom) != "":
+		summary.Title = firstLine(custom)
+		summary.TitleSource = "native"
+	case strings.TrimSpace(last) != "":
+		summary.Title = firstLine(last)
+		summary.TitleSource = "derived"
+	case title != "":
 		summary.Title = title
 		summary.TitleSource = "derived"
 	}
@@ -225,21 +291,30 @@ func locateSession(root, id string) (string, error) {
 }
 
 type claudeRecord struct {
-	Type              string  `json:"type"`
-	Subtype           string  `json:"subtype"`
-	UUID              string  `json:"uuid"`
-	ParentUUID        *string `json:"parentUuid"`
-	Timestamp         string  `json:"timestamp"`
-	Cwd               string  `json:"cwd"`
-	SessionID         string  `json:"sessionId"`
-	Version           string  `json:"version"`
-	IsSidechain       bool    `json:"isSidechain"`
-	IsMeta            bool    `json:"isMeta"`
-	IsAPIErrorMessage bool    `json:"isApiErrorMessage"`
-	APIErrorStatus    *int64  `json:"apiErrorStatus"`
-	Error             string  `json:"error"`
-	DurationMs        *int64  `json:"durationMs"`
-	PromptSource      string  `json:"promptSource"`
+	Type        string  `json:"type"`
+	Subtype     string  `json:"subtype"`
+	UUID        string  `json:"uuid"`
+	ParentUUID  *string `json:"parentUuid"`
+	Timestamp   string  `json:"timestamp"`
+	Cwd         string  `json:"cwd"`
+	SessionID   string  `json:"sessionId"`
+	Version     string  `json:"version"`
+	IsSidechain bool    `json:"isSidechain"`
+	IsMeta      bool    `json:"isMeta"`
+	// 子 agent 消息的挂载点（SDK 的 parent_tool_use_id / parent_agent_id）。
+	ParentToolUseID  *string `json:"parentToolUseId"`
+	ParentToolUseIDS *string `json:"parent_tool_use_id"`
+	ParentAgentID    *string `json:"parentAgentId"`
+	ParentAgentIDS   *string `json:"parent_agent_id"`
+	// 会话标题相关记录：custom-title / last-prompt。
+	CustomTitle       string `json:"customTitle"`
+	Title             string `json:"title"`
+	LastPrompt        string `json:"lastPrompt"`
+	IsAPIErrorMessage bool   `json:"isApiErrorMessage"`
+	APIErrorStatus    *int64 `json:"apiErrorStatus"`
+	Error             string `json:"error"`
+	DurationMs        *int64 `json:"durationMs"`
+	PromptSource      string `json:"promptSource"`
 	Origin            *struct {
 		Kind string `json:"kind"`
 	} `json:"origin"`
@@ -285,7 +360,6 @@ var knownIgnored = map[string]bool{
 	"api-request":           true,
 	"api-request-blob":      true,
 	"api-request-shape":     true,
-	"last-prompt":           true,
 	"cost-state":            true,
 	"queue-operation":       true,
 	"tools-used":            true,
@@ -343,6 +417,10 @@ type mapper struct {
 	derivedStatus bool
 	sawThinking   bool
 	injected      int
+	customTitle   string
+	lastPrompt    string
+	lastHuman     string
+	sidechain     int
 }
 
 func (m *mapper) handle(number int, line []byte) error {
@@ -353,7 +431,18 @@ func (m *mapper) handle(number int, line []byte) error {
 	}
 	at, _ := parseISO(record.Timestamp)
 	m.observe(record, at)
+	if record.LastPrompt != "" {
+		m.lastPrompt = record.LastPrompt
+	}
+	if record.Type == "custom-title" {
+		if title := record.customTitleValue(); title != "" {
+			m.customTitle = title
+		}
+	}
 	switch record.Type {
+	case "last-prompt", "custom-title":
+		// 标题类记录：上面已取值，不产出消息。
+		return nil
 	case "user":
 		m.applyUser(record, at)
 	case "assistant":
@@ -414,6 +503,12 @@ func (m *mapper) observe(record claudeRecord, at int64) {
 }
 
 func (m *mapper) applyUser(record claudeRecord, at int64) {
+	if record.sidechain() {
+		// 子 agent 的对话（SDK 用 parent_tool_use_id/parent_agent_id 挂到父工具调用）：
+		// 不并入主会话轮次，单独计数并给出诊断。
+		m.sidechain++
+		return
+	}
 	message, blocks, err := decodeMessage(record.Message)
 	if err != nil {
 		m.out.Unknown["user:unparsable"]++
@@ -477,10 +572,27 @@ func (m *mapper) applyUser(record claudeRecord, at int64) {
 		TurnHint:    hint,
 		Parts:       parts,
 	})
+	var builder strings.Builder
+	for _, part := range parts {
+		if part.Text == nil {
+			continue
+		}
+		if builder.Len() > 0 {
+			builder.WriteString(" ")
+		}
+		builder.WriteString(*part.Text)
+	}
+	if text := strings.TrimSpace(builder.String()); text != "" {
+		m.lastHuman = text
+	}
 	_ = message
 }
 
 func (m *mapper) applyAssistant(record claudeRecord, at int64) {
+	if record.sidechain() {
+		m.sidechain++
+		return
+	}
 	message, blocks, err := decodeMessage(record.Message)
 	if err != nil {
 		m.out.Unknown["assistant:unparsable"]++
@@ -615,15 +727,25 @@ func (m *mapper) appendInjected(record claudeRecord, texts []claudeBlock, at int
 	m.injected++
 }
 
-// looksLikeLocalCommand 识别 claude CLI 的本地命令回显（不是用户提示词）。
+// looksLikeLocalCommand 识别 claude CLI 的本地命令回显/中断标记（不是用户提示词）。
 func looksLikeLocalCommand(blocks []claudeBlock) bool {
 	for _, block := range blocks {
-		text := strings.TrimSpace(block.Text)
-		if strings.HasPrefix(text, "<local-command-") || strings.HasPrefix(text, "<command-") {
+		if looksLikeInjectedText(block.Text) {
 			return true
 		}
 	}
 	return false
+}
+
+// looksLikeInjectedText：claude 自己写的“伪 user 文本”。
+//   - <local-command-*> / <command-*>：/exit 等 CLI 操作的回显；
+//   - [Request interrupted by user]：用户中断时补的状态标记。
+func looksLikeInjectedText(text string) bool {
+	trimmed := strings.TrimSpace(text)
+	if strings.HasPrefix(trimmed, "<local-command-") || strings.HasPrefix(trimmed, "<command-") {
+		return true
+	}
+	return strings.HasPrefix(trimmed, "[Request interrupted by user")
 }
 
 func (m *mapper) applyToolResult(block claudeBlock, at int64) {
@@ -672,6 +794,12 @@ func (m *mapper) finalize() {
 			Detail: "claude 把 /exit、<local-command-*> 回显和 isMeta 提示也写成 user 记录；它们已按 system 保存，不参与轮次。",
 		})
 	}
+	if m.sidechain > 0 {
+		m.out.Diagnostics = append(m.out.Diagnostics, session.Diagnostic{
+			Level: "info", Code: "subagent-messages", Title: itoa(m.sidechain) + " 条子 agent 消息未并入主会话",
+			Detail: "带 isSidechain / parent_tool_use_id / parent_agent_id 的记录属于子 agent；官方 SDK 用父工具调用挂载，本模型暂未表达，先跳过。",
+		})
+	}
 	if m.truncated {
 		m.out.Diagnostics = append(m.out.Diagnostics, session.Diagnostic{
 			Level: "warn", Code: "truncated-text", Title: "文本/工具输出按上限截断",
@@ -692,7 +820,19 @@ func (m *mapper) finalize() {
 			m.out.Meta.UpdatedMs = last.UpdatedMs
 		}
 	}
-	if title := firstUserText(m.out.Messages); title != "" {
+	// 标题优先级对齐官方 SDK 的 summary：custom title → 最近一次 prompt → 首条 prompt。
+	title := ""
+	switch {
+	case strings.TrimSpace(m.customTitle) != "":
+		title = m.customTitle
+	case strings.TrimSpace(m.lastPrompt) != "":
+		title = m.lastPrompt
+	case strings.TrimSpace(m.lastHuman) != "":
+		title = m.lastHuman
+	default:
+		title = firstUserText(m.out.Messages)
+	}
+	if title = firstLine(title); title != "" {
 		m.out.Meta.Title = session.Str(title)
 	}
 	for index := len(m.out.Messages) - 1; index >= 0; index-- {
@@ -727,6 +867,22 @@ func decodeMessage(raw json.RawMessage) (claudeMessage, []claudeBlock, error) {
 		return message, nil, err
 	}
 	return message, []claudeBlock{{Type: "text", Text: text}}, nil
+}
+
+// sidechain 判断这条记录属于子 agent（不是主会话的人类输入/回复）。
+func (r claudeRecord) sidechain() bool {
+	return r.IsSidechain || nonEmptyPtr(r.ParentToolUseID) || nonEmptyPtr(r.ParentToolUseIDS) || nonEmptyPtr(r.ParentAgentID) || nonEmptyPtr(r.ParentAgentIDS)
+}
+
+func (r claudeRecord) customTitleValue() string {
+	if strings.TrimSpace(r.CustomTitle) != "" {
+		return r.CustomTitle
+	}
+	return r.Title
+}
+
+func nonEmptyPtr(value *string) bool {
+	return value != nil && strings.TrimSpace(*value) != ""
 }
 
 func isHuman(record claudeRecord) bool {

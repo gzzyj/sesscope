@@ -123,6 +123,8 @@ func TestClaudeLocalCommandsAreNotTurns(t *testing.T) {
 			"message": map[string]any{"role": "user", "content": "<command-name>/exit</command-name>"}},
 		{"type": "user", "uuid": "u4", "timestamp": stamp,
 			"message": map[string]any{"role": "user", "content": "<local-command-stdout>Bye!</local-command-stdout>"}},
+		{"type": "user", "uuid": "u5", "timestamp": stamp,
+			"message": map[string]any{"role": "user", "content": []any{map[string]any{"type": "text", "text": "[Request interrupted by user]"}}}},
 	}
 	store := writeSession(t, records)
 	summaries, err := New().Sessions(context.Background(), store, source.Query{})
@@ -148,8 +150,8 @@ func TestClaudeLocalCommandsAreNotTurns(t *testing.T) {
 	if users != 1 {
 		t.Errorf("user 消息 = %d，期望 1（本地命令不该算人类输入）", users)
 	}
-	if systems != 3 {
-		t.Errorf("system 消息 = %d，期望 3（保留本地命令记录）", systems)
+	if systems != 4 {
+		t.Errorf("system 消息 = %d，期望 4（保留本地命令/中断标记）", systems)
 	}
 	if assistant == nil || assistant.CompletedMs == nil {
 		t.Fatalf("assistant 消息或结束时间缺失：%+v", assistant)
@@ -168,5 +170,84 @@ func TestClaudeLocalCommandsAreNotTurns(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("缺少 local-command 诊断：%+v", opened.Diagnostics)
+	}
+}
+
+// TestClaudeTitlePriority：标题对齐 SDK 的 summary 优先级（custom title → 最近 prompt → 首条 prompt）。
+func TestClaudeTitlePriority(t *testing.T) {
+	stamp := "2026-10-28T13:58:53.957Z"
+	base := []map[string]any{
+		{"type": "user", "uuid": "u1", "timestamp": stamp, "origin": map[string]any{"kind": "human"}, "promptSource": "typed",
+			"message": map[string]any{"role": "user", "content": "first prompt"}},
+		{"type": "assistant", "uuid": "a1", "timestamp": stamp,
+			"message": map[string]any{"role": "assistant", "content": []any{map[string]any{"type": "text", "text": "ok"}}}},
+		{"type": "system", "subtype": "turn_duration", "durationMs": 1000, "timestamp": stamp},
+	}
+	// 1) 只有最近 prompt：标题跟随最近 prompt。
+	withLast := append([]map[string]any{}, base...)
+	withLast = append(withLast, map[string]any{"type": "last-prompt", "lastPrompt": "second prompt", "timestamp": stamp})
+	store := writeSession(t, withLast)
+	summaries, err := New().Sessions(context.Background(), store, source.Query{})
+	if err != nil {
+		t.Fatalf("列会话：%v", err)
+	}
+	if summaries[0].Title != "second prompt" {
+		t.Errorf("列表标题 = %q，期望 second prompt", summaries[0].Title)
+	}
+	opened, err := New().Open(context.Background(), store, summaries[0].Ref, source.OpenOptions{})
+	if err != nil {
+		t.Fatalf("取会话：%v", err)
+	}
+	if opened.Meta.Title == nil || *opened.Meta.Title != "second prompt" {
+		t.Errorf("导出标题 = %v，期望 second prompt", opened.Meta.Title)
+	}
+
+	// 2) custom-title 优先于最近 prompt。
+	withCustom := append([]map[string]any{}, withLast...)
+	withCustom = append(withCustom, map[string]any{"type": "custom-title", "customTitle": "我的标题", "timestamp": stamp})
+	store = writeSession(t, withCustom)
+	summaries, err = New().Sessions(context.Background(), store, source.Query{})
+	if err != nil {
+		t.Fatalf("列会话：%v", err)
+	}
+	if summaries[0].Title != "我的标题" {
+		t.Errorf("列表标题 = %q，期望 我的标题", summaries[0].Title)
+	}
+}
+
+// TestClaudeSidechainMessages：子 agent 记录不并入主会话轮次，并留诊断。
+func TestClaudeSidechainMessages(t *testing.T) {
+	stamp := "2026-10-28T13:58:53.957Z"
+	records := []map[string]any{
+		{"type": "user", "uuid": "u1", "timestamp": stamp, "origin": map[string]any{"kind": "human"}, "promptSource": "typed",
+			"message": map[string]any{"role": "user", "content": "main"}},
+		{"type": "assistant", "uuid": "a1", "timestamp": stamp,
+			"message": map[string]any{"role": "assistant", "content": []any{map[string]any{"type": "text", "text": "ok"}}}},
+		{"type": "system", "subtype": "turn_duration", "durationMs": 1000, "timestamp": stamp},
+		{"type": "user", "uuid": "s1", "timestamp": stamp, "isSidechain": true,
+			"message": map[string]any{"role": "user", "content": "subagent prompt"}},
+		{"type": "assistant", "uuid": "s2", "timestamp": stamp, "isSidechain": true,
+			"message": map[string]any{"role": "assistant", "content": []any{map[string]any{"type": "text", "text": "sub ok"}}}},
+	}
+	store := writeSession(t, records)
+	summaries, err := New().Sessions(context.Background(), store, source.Query{})
+	if err != nil {
+		t.Fatalf("列会话：%v", err)
+	}
+	opened, err := New().Open(context.Background(), store, summaries[0].Ref, source.OpenOptions{})
+	if err != nil {
+		t.Fatalf("取会话：%v", err)
+	}
+	if len(opened.Messages) != 2 {
+		t.Errorf("主会话消息 = %d，期望 2（子 agent 不该并入）：%+v", len(opened.Messages), opened.Messages)
+	}
+	found := false
+	for _, diagnostic := range opened.Diagnostics {
+		if diagnostic.Code == "subagent-messages" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("缺少 subagent-messages 诊断：%+v", opened.Diagnostics)
 	}
 }

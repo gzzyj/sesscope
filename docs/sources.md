@@ -50,10 +50,23 @@
 | 项 | 说明 |
 |---|---|
 | 存储 | ~/.claude/projects/<cwd-slug>/<uuid>.jsonl |
-| 映射 | user/assistant 记录 → 消息（message.content 块：text / thinking / tool_use / tool_result）；tool_result → 配对工具结果（is_error→error）；isApiErrorMessage + apiErrorStatus → 步骤错误；system{subtype:turn_duration} → 步骤结束时间；turnPosition → 轮次编号；isSidechain/parentUuid → 子会话 |
+| 映射 | user/assistant 记录 → 消息（message.content 块：text / thinking / tool_use / tool_result）；tool_result → 配对工具结果（is_error→error）；isApiErrorMessage + apiErrorStatus → 步骤错误；system{subtype:turn_duration} → 步骤结束时间（并补齐文本部件的结束时间）；turnPosition → 轮次编号；isSidechain/parent_tool_use_id/parent_agent_id → 子 agent 消息（暂跳过并诊断） |
+| 标题 | 对齐官方 SDK 的 summary 优先级：custom-title → 最近一次 prompt（last-prompt，尾部 64KB 扫描）→ 首条人类输入；统一截断到 60 字 |
+| 不算人类输入 | isMeta、<local-command-*>、<command-*>、[Request interrupted by user]、tool_result；前四类保留成 system 消息并记 local-command 诊断 |
 | 忽略清单 | mode、permission-mode、atis-latch、file-history-snapshot、attachment、api-request*、last-prompt、cost-state、queue-operation、tools-used（都记录在文档里，doctor 可见） |
 | 能力 | 子会话、轮次编号、token、工具参数/输出 |
-| 缺口 | 本机样本未出现 thinking / compaction，能力位按"不保证"处理并给诊断；工具状态由 tool_result 推断；无标题（派生）；无成本 |
+| 缺口 | 本机样本未出现 thinking / compaction，能力位按"不保证"处理并给诊断；工具状态由 tool_result 推断；标题为派生值；无成本 |
+
+### 官方契约与对齐
+
+**官方只保证两层**（其余是实现细节，没有公开 schema）：
+
+- **存储**：transcript 是 JSONL，位于 `~/.claude/projects/<projectKey>/<sessionId>.jsonl`；Agent SDK 用 `SessionStore`（`append`/`load`）把同一批 entry 镜像到外部存储。
+- **读语义**：`listSessions()`（sessionId / summary / firstPrompt / cwd / createdAt / lastModified / customTitle / gitBranch / tag）、`getSessionInfo()`、`getSessionMessages()`（默认只返回 user / assistant，`includeSystemMessages=true` 才带 system；子 agent 消息用 `parent_tool_use_id` / `parent_agent_id` 挂到父工具调用）。文档：<https://code.claude.com/docs/en/agent-sdk/session-storage>、<https://code.claude.com/docs/en/agent-sdk/typescript.md>。
+
+**我们依赖的字段**（无公开契约，改版需回归）：`type`、`subtype`、`uuid`、`parentUuid`、`timestamp`、`sessionId`、`version`、`cwd`、`isMeta`、`isSidechain`、`isApiErrorMessage`、`apiErrorStatus`、`promptSource`、`origin.kind`、`turnPosition`、`durationMs`、`lastPrompt`、`customTitle`、`message.{role,model,content,usage,stop_reason}`。
+
+**已知缺口**：子 agent 消息暂不并入主会话（诊断 `subagent-messages`）；custom-title 本机无样本，按字段兼容；last-prompt 只扫尾部 64KB。
 
 ## 6. 版本漂移怎么处理
 
