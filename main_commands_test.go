@@ -22,13 +22,19 @@ func fixtureDB(t *testing.T) string {
 
 func runArgs(t *testing.T, args ...string) (code int, stdout, stderr string) {
 	t.Helper()
+	return runArgsInput(t, "", args...)
+}
+
+// runArgsInput 允许给命令喂 stdin（交互式命令用）。
+func runArgsInput(t *testing.T, stdin string, args ...string) (code int, stdout, stderr string) {
+	t.Helper()
 	// 隔离 DeepWorks 状态文件：默认走"读不到 → 退回各来源原生工作区"分支，
 	// 否则测试会读这台机器上真实的工作区，结果不可重复。
 	if os.Getenv("DEEPWORKS_CONFIG_HOME") == "" {
 		t.Setenv("DEEPWORKS_CONFIG_HOME", t.TempDir())
 	}
 	var out, errOut bytes.Buffer
-	code = run(args, strings.NewReader(""), &out, &errOut)
+	code = run(args, strings.NewReader(stdin), &out, &errOut)
 	return code, out.String(), errOut.String()
 }
 
@@ -372,6 +378,38 @@ func TestExportRequiresSession(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "--session") {
 		t.Errorf("stderr = %s", stderr)
+	}
+}
+
+// TestUIFlow 走一遍：来源 → 全部工作区 → 会话 → 打开 → 回到会话列表 → 退出。
+func TestUIFlow(t *testing.T) {
+	dbPath := fixtureDB(t)
+	// 第 2 条（根会话）有消息；第 1 条 demo 是空会话，渲染会明确报错。
+	input := "1\na\n2\no\n\nq\n"
+	code, stdout, stderr := runArgsInput(t, input, "ui", "--db", dbPath, "--no-browser")
+	if code != exitOK {
+		t.Fatalf("退出码 = %d，stderr：%s", code, stderr)
+	}
+	for _, needle := range []string{"选择来源", "选择工作区", "会话（3/3", "会话详情", "已渲染："} {
+		if !strings.Contains(stdout, needle) {
+			t.Errorf("输出里缺少 %q：\nstdout:\n%s\nstderr:\n%s", needle, stdout, stderr)
+		}
+	}
+}
+
+// TestUIBackNavigation 验证能从会话列表退回工作区、再退回来源。
+func TestUIBackNavigation(t *testing.T) {
+	dbPath := fixtureDB(t)
+	// 详情 --b--> 会话列表 --b--> 工作区 --b--> 来源
+	code, stdout, _ := runArgsInput(t, "1\na\n1\nb\nb\nb\nq\n", "ui", "--db", dbPath, "--no-browser")
+	if code != exitOK {
+		t.Fatalf("退出码 = %d", code)
+	}
+	if strings.Count(stdout, "选择来源") < 2 {
+		t.Errorf("应该能退回来源选择：\n%s", stdout)
+	}
+	if strings.Count(stdout, "选择工作区") < 2 {
+		t.Errorf("应该能退回工作区：\n%s", stdout)
 	}
 }
 

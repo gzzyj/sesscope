@@ -100,6 +100,7 @@ claude    ok           claude/jsonl:jsonl     ~/.claude/projects                
 | 发现 | `doctor` | 逐存储体检；`--drift` 抽样报告代码不认识的记录类型 |
 | 发现 | `workspaces` | 工作区（跨源 + DeepWorks 应用态叠加） |
 | 发现 | `sessions` | 跨源会话列表：`--workspace / --grep / --since / --sort / --limit / --all` |
+| 发现 | `ui` | 交互式浏览：来源 → 工作区 → 会话 → 渲染并打开浏览器（`b` 回退 / `q` 退出） |
 | 取数 | `export` | 会话 → 规范 JSON；可顺带 `--html` / `--data`；`--format legacy` 出旧 opencode 形状 |
 | 分析 | `analyze` | 事件链 + 补偿链 + 证据；`--in` 读导出 JSON，`--session` 直连来源 |
 | 渲染 | `render` | 导出 JSON（新旧格式都认）→ 自包含 HTML |

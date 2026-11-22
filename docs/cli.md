@@ -23,6 +23,7 @@
       doctor      逐存储体检；--drift 抽样报告"代码不认识的记录类型"
       workspaces  （别名 ws）工作区（跨源 + DeepWorks 应用态叠加）
       sessions    （别名 ls）跨源会话列表
+      ui          （别名 browse / pick）交互式浏览：来源 → 工作区 → 会话 → 浏览器打开
     取数
       export      （别名 dump）会话 → 规范 JSON（sesscope/session.v1）；可顺带 --html / --data
     分析
@@ -138,6 +139,29 @@ STATUS 取值：ok / unsupported / unreadable / missing。
 | --json / -j | false | 机器可读 |
 
 四源共用同一套过滤/排序语义（source.ApplyQuery），不因来源不同而漂移。
+
+### ui（交互式浏览）
+
+逐级选择来源 → 工作区 → 会话，把选中的会话渲染成自包含 HTML 并用浏览器打开；全程可回退。
+
+| 按键 | 作用 |
+|---|---|
+| 数字 | 选择当前页条目 |
+| a | 工作区层：全部会话 |
+| n / p | 会话层：下一页 / 上一页 |
+| o | 详情层：渲染并在浏览器打开（打开后按 Enter 回到会话列表） |
+| b | 返回上一层 |
+| s | 直接回到来源选择 |
+| w | 详情层：回到工作区 |
+| q | 退出 |
+
+| 参数 | 默认 | 说明 |
+|---|---|---|
+| --source / -s | 全部 | 限定可选来源 |
+| --no-browser | false | 只渲染并打印路径，不自动打开浏览器 |
+| --per-page | 15 | 会话列表每页条数 |
+
+非交互环境（管道）也能用：把按键按行喂给 stdin，方便脚本化冒烟。
 
 ### export（别名 dump）
 

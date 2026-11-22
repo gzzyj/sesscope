@@ -14,6 +14,7 @@ func Register(root *cobra.Command, env *app.Env, version string) {
 		newDoctorCommand(env),
 		newWorkspacesCommand(env),
 		newSessionsCommand(env),
+		newUICommand(env),
 		newAuditCommand(env),
 		newExportCommand(env),
 		newAnalyzeCommand(env),
