@@ -90,9 +90,11 @@
     });
     for (const step of turn.steps) {
       const think = step.reasoningMs + step.textMs > 0 ? step.reasoningMs / (step.reasoningMs + step.textMs) : 0;
-      const encryptedOnly = (step.reasoning || []).length > 0
-        && (step.reasoning || []).every((span) => span.encrypted)
-        && (step.texts || []).length === 0;
+      // 逐段判断：模型区间与哪段加密思考重叠，就把那条画成斜纹；不要因为整步里夹了文本就整步褪掉。
+      const encryptedRanges = (step.reasoning || [])
+        .filter((span) => span.encrypted)
+        .map((span) => [span.startMs, span.endMs]);
+      const overlapsEncrypted = (t0, t1) => encryptedRanges.some(([start, end]) => t0 < end && t1 > start);
       const spans = Array.isArray(step.modelSpans) && step.modelSpans.length > 0 ? step.modelSpans : null;
       if (spans) {
         // 源显式记录的分段：段与段之间夹着工具调用，一段画一条，不能并成一个长条。
@@ -100,7 +102,7 @@
           pushRecord({
             key: 't' + turn.index + 's' + step.index,
             kind: 'model', lane: 1, turn, step, tool: null,
-            t0: span.startMs, t1: span.endMs, think, encrypted: encryptedOnly,
+            t0: span.startMs, t1: span.endMs, think, encrypted: overlapsEncrypted(span.startMs, span.endMs),
             status: step.status,
             label: '模型调用',
           });
@@ -109,7 +111,7 @@
         pushRecord({
           key: 't' + turn.index + 's' + step.index,
           kind: 'model', lane: 1, turn, step, tool: null,
-          t0: step.modelStartMs, t1: step.modelEndMs, think, encrypted: encryptedOnly,
+          t0: step.modelStartMs, t1: step.modelEndMs, think, encrypted: encryptedRanges.length > 0,
           status: step.status,
           label: '模型调用',
         });
