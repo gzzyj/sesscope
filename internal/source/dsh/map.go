@@ -326,11 +326,14 @@ func (m *mapper) appendAssistantMessage(env envelope) {
 		PayloadRole: session.Str("assistant"),
 		CreatedMs:   session.I64(created),
 		UpdatedMs:   session.I64(env.Time),
-		TurnHint:    session.TurnHint{Turn: data.Turn, Step: data.Step},
-		Model:       m.model,
-		Tokens:      tokensFromUsage(data.Usage),
-		Finish:      finishReason(data.Stream),
-		Parts:       parts,
+		// 模型调用区间 = [step/start, assistant/message 落盘时刻]，与 DSH 原生轨迹的
+		// message cell 一致（工具执行在消息之后，由 tool/call 起算，不会重叠）。
+		ModelSpans: []session.ModelSpan{{StartMs: created, EndMs: env.Time}},
+		TurnHint:   session.TurnHint{Turn: data.Turn, Step: data.Step},
+		Model:      m.model,
+		Tokens:     tokensFromUsage(data.Usage),
+		Finish:     finishReason(data.Stream),
+		Parts:      parts,
 	}
 	if message.ID == "" {
 		message.ID = "assistant-" + itoa(len(m.out.Messages))
