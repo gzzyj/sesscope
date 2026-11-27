@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gzzyj/sesscope/internal/platform"
 	"github.com/gzzyj/sesscope/internal/session"
 	"github.com/gzzyj/sesscope/internal/source"
 )
@@ -19,10 +20,19 @@ import (
 // 目前支持旧版 SQLite schema（session/message/part）。新版
 // （session_v2/session_message/session_part）会被 Locate 如实标成"不可读 + 原因"，
 // 而不是返回 0 个会话。
-type Adapter struct{}
+type Adapter struct{ platform platform.Adapter }
 
 // New 返回 opencode 适配器。
-func New() *Adapter { return &Adapter{} }
+func New(adapters ...platform.Adapter) *Adapter {
+	var p platform.Adapter
+	if len(adapters) > 0 {
+		p = adapters[0]
+	}
+	if p == nil {
+		p = platform.Detect()
+	}
+	return &Adapter{platform: p}
+}
 
 // ID 实现 source.Source。
 func (a *Adapter) ID() session.SourceID { return session.Opencode }
@@ -60,30 +70,33 @@ func (a *Adapter) Locate(ctx context.Context, l source.Locator) ([]source.Store,
 		return []source.Store{probe(l.Store, "l0:--store")}, nil
 	}
 	if l.PID > 0 {
-		path, err := DBPathForPID(l.PID)
+		path, rule, err := a.storeForPID(ctx, l.PID)
 		if err != nil {
 			return nil, err
 		}
-		return []source.Store{probe(path, "l3:pid "+itoa(l.PID))}, nil
+		return []source.Store{probe(path, rule)}, nil
 	}
-	stores := make([]source.Store, 0, 4)
-	seen := make(map[string]bool, 4)
+	stores := make([]source.Store, 0, 8)
+	seen := make(map[string]bool, 8)
 	add := func(path, rule string) {
-		if path == "" || seen[path] {
+		if path == "" {
 			return
 		}
-		seen[path] = true
+		key := filepath.Clean(path)
+		if a.platform.Kind() == "windows" {
+			key = strings.ToLower(key)
+		}
+		if seen[key] {
+			return
+		}
+		seen[key] = true
 		stores = append(stores, probe(path, rule))
 	}
 	if l.Home != "" {
 		add(filepath.Join(l.Home, "opencode", "opencode.db"), "l1:--home")
 	}
-	if fromEnv := strings.TrimSpace(os.Getenv("OPENCODE_TRACE_DB")); fromEnv != "" {
-		add(fromEnv, "l1:env OPENCODE_TRACE_DB")
-	}
-	if home, err := os.UserHomeDir(); err == nil && home != "" {
-		add(filepath.Join(home, ".config", "com.deepexi.deepworks", "deepworks-engine-data", "xdg", "data", "opencode", "opencode.db"), "l2:deepworks-sidecar")
-		add(filepath.Join(home, ".local", "share", "opencode", "opencode.db"), "l2:opencode-default")
+	for _, candidate := range a.discoveryCandidates() {
+		add(candidate.Path, candidate.Rule)
 	}
 	return stores, nil
 }
@@ -310,21 +323,36 @@ func (a *Adapter) Workspaces(ctx context.Context, store source.Store) ([]session
 
 // Processes 实现 source.ProcessLister（只作提示，不进主链路）。
 func (a *Adapter) Processes(ctx context.Context) ([]source.Process, error) {
-	processes, err := DiscoverProcesses()
+	processes, err := a.platform.Processes(ctx, "opencode")
 	if err != nil {
 		return nil, err
 	}
 	out := make([]source.Process, 0, len(processes))
-	for _, item := range processes {
+	for _, process := range processes {
+		if !isOpencodeProcessName(process.Name) {
+			continue
+		}
+		store, storeExists, storeNote := a.storeForProcess(process)
+		notes := make([]string, 0, 3)
+		if process.Note != "" {
+			notes = append(notes, process.Note)
+		}
+		if process.EnvironError != "" {
+			notes = append(notes, process.EnvironError)
+		}
+		if storeNote != "" {
+			notes = append(notes, storeNote)
+		}
 		out = append(out, source.Process{
-			PID:         item.PID,
-			PPID:        item.PPID,
-			Name:        item.Name,
-			Args:        item.Args,
-			Port:        item.Port,
-			StartedMs:   item.Started.UnixMilli(),
-			Store:       item.DBPath,
-			StoreExists: item.DBExists,
+			PID:         process.PID,
+			PPID:        process.PPID,
+			Name:        process.Name,
+			Args:        process.Args,
+			Port:        portOf(process.Args),
+			StartedMs:   process.StartedMs,
+			Store:       store,
+			StoreExists: storeExists,
+			Note:        strings.Join(notes, "；"),
 		})
 	}
 	return out, nil

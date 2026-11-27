@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	_ "modernc.org/sqlite" // 纯 Go 的 SQLite 驱动，不需要 cgo
@@ -18,52 +18,10 @@ type DB struct {
 	Path string
 }
 
-// CandidatePaths 返回自动发现时依次尝试的库路径（按优先级）。
-// 可通过环境变量 OPENCODE_TRACE_DB 覆盖。
-func CandidatePaths() []string {
-	home, _ := os.UserHomeDir()
-	candidates := make([]string, 0, 4)
-	if fromEnv := strings.TrimSpace(os.Getenv("OPENCODE_TRACE_DB")); fromEnv != "" {
-		candidates = append(candidates, fromEnv)
-	}
-	if home != "" {
-		candidates = append(candidates,
-			// DeepWorks 内置 sidecar 真实使用的库
-			filepath.Join(home, ".config", "com.deepexi.deepworks", "deepworks-engine-data", "xdg", "data", "opencode", "opencode.db"),
-			// 独立安装的 opencode
-			filepath.Join(home, ".local", "share", "opencode", "opencode.db"),
-		)
-	}
-	return candidates
-}
-
-// Discover 找到可用的库：显式指定 > 环境变量 > 已知路径。
-func Discover(explicit string) (string, error) {
-	if explicit != "" {
-		info, err := os.Stat(explicit)
-		if err != nil {
-			return "", fmt.Errorf("指定的库不存在：%s（%w）", explicit, err)
-		}
-		if info.IsDir() {
-			return "", fmt.Errorf("指定的路径是目录，不是 SQLite 库：%s", explicit)
-		}
-		return explicit, nil
-	}
-	tried := make([]string, 0, 4)
-	for _, candidate := range CandidatePaths() {
-		tried = append(tried, candidate)
-		info, err := os.Stat(candidate)
-		if err == nil && !info.IsDir() {
-			return candidate, nil
-		}
-	}
-	return "", fmt.Errorf("找不到 opencode 会话库，试过：\n  %s\n用 -db 指定，或设置环境变量 OPENCODE_TRACE_DB", strings.Join(tried, "\n  "))
-}
-
 // OpenReadOnly 以只读方式打开任意 SQLite 文件，不做 opencode schema 校验。
 // 供"探测版本/体检"使用：新版 schema 也要能打开，才能如实报告"不支持"而不是"打不开"。
 func OpenReadOnly(path string) (*sql.DB, error) {
-	dsn := "file:" + url.PathEscape(path) + "?mode=ro&_pragma=busy_timeout(5000)"
+	dsn := sqliteDSN(path)
 	conn, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("打开库 %s：%w", path, err)
@@ -125,6 +83,24 @@ func (db *DB) checkSchema() error {
 		return fmt.Errorf("%s 是旧版 opencode 库（没有 project 表，无法列工作区）；用 -db 指定新版库", db.Path)
 	}
 	return nil
+}
+
+// sqliteDSN 生成只读 DSN。
+//
+// Windows 盘符（C:\\...）直接塞进 "file:" 会被当成 URL scheme，所以统一走
+// file:///C:/... 这种 URI 形式；POSIX 也会变成 file:///home/...，由 modernc 的
+// sqlite 驱动统一解析。
+func sqliteDSN(path string) string {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		absolute = path
+	}
+	slash := filepath.ToSlash(absolute)
+	if runtime.GOOS == "windows" && !strings.HasPrefix(slash, "/") {
+		slash = "/" + slash
+	}
+	uri := url.URL{Scheme: "file", Path: slash}
+	return uri.String() + "?mode=ro&_pragma=busy_timeout(5000)"
 }
 
 // ErrSessionNotFound 表示按 id 没找到会话。

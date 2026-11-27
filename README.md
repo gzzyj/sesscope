@@ -2,7 +2,7 @@
 
 **把本机 Agent 的会话读成同一份领域模型，回答三个问题：时间花在哪、哪一步卡住、失败后为补救多花了多少步。**
 
-只读 · 离线 · 不调模型 · 单个静态二进制
+只读 · 离线 · 不调模型 · Linux / macOS / Windows 单文件二进制
 
 ![sesscope 页面：时间轴、轮次台账、检查器与归因](docs/assets/page.png)
 
@@ -34,7 +34,7 @@ sesscope 的做法是：**先把四个产品的存储都映射成一份领域模
 
 | 能力 | opencode | dsh | codex | claude |
 |---|---|---|---|---|
-| 进程发现（/proc） | ✅ | — | — | — |
+| 进程发现（Linux /proc · Windows PowerShell） | ✅ | — | — | — |
 | 原生工作区 | ✅ project | 目录分组 | 目录分组 | 目录分组 |
 | 标题 | ✅ 存储内 | ✅ session/title | 派生（首条人类输入） | 派生（首条人类输入） |
 | 轮次/步骤编号 | 派生 | ✅ turn/step | ✅ turn_id | ✅ turnPosition |
@@ -46,13 +46,16 @@ sesscope 的做法是：**先把四个产品的存储都映射成一份领域模
 | 结构化错误 | ✅ | ✅ | 部分 | ✅ |
 
 本机实测规模：opencode 52 个会话、dsh 314 个、codex 88 个、claude 19 个。
+Windows 10（QEMU）实测：DeepWorks sidecar 26 个会话、夹具 opencode 4 个，dsh / codex / claude 各 1 个；
+四个来源都能发现、导出并渲染页面（见 [docs/windows.md](docs/windows.md)）。
 
 ## 快速开始
 
 需要 Go 1.21+（不需要 cgo）。
 
 ```bash
-make build            # → out/sesscope（约 10 MB，UI 已内嵌）
+make build            # Linux/macOS → out/sesscope（约 10 MB，UI 已内嵌）
+make build-windows    # 交叉编译 → out/sesscope.exe（纯 Go，不需要 cgo）
 make install          # 装到 go install 的路径（GOBIN，未设置时为 GOPATH/bin），之后直接用 sesscope
 ```
 
@@ -65,7 +68,7 @@ sesscope export --session dsh:session-59b8… --html trace.html   # 3. 导出 + 
 sesscope analyze --session dsh:session-59b8…                    # 4. 确定性归因
 ```
 
-真实输出（`sources`，本机）：
+真实输出（`sources`，Linux 本机）：
 
 ```
 SOURCE    STATUS       FORMAT                 STORE                                        SESSIONS  LIVE       NOTE
@@ -91,6 +94,40 @@ claude    ok           claude/jsonl:jsonl     ~/.claude/projects                
 同一目标重复失败      3   1 m 58 s  A
 输出编码损坏（乱码）   1      2.9 s  A
 ```
+
+## Windows 支持
+
+同一套发现/取数/归因/渲染流程，只是把"这台机器"的差异交给 `internal/platform`：
+
+| 操作 | Linux / macOS | Windows |
+|---|---|---|
+| 家目录 | `$HOME` / XDG | `%USERPROFILE%` |
+| 配置目录 | `$XDG_CONFIG_HOME` / `~/.config` | `%APPDATA%` |
+| 本机数据目录 | `$XDG_DATA_HOME` / `~/.local/share` | `%LOCALAPPDATA%` |
+| 列进程 | `/proc` | PowerShell `Get-CimInstance Win32_Process`（失败退回 `tasklist`） |
+| 进程环境 | `/proc/<pid>/environ` | 读不到（需要调试权限），按命令行推断并在 `sources --explain` 说明 |
+| 打开页面 | `xdg-open` / `open` | `rundll32 url.dll,FileProtocolHandler` |
+
+Windows 上的默认发现路径：
+
+| 来源 | 默认路径（按优先级） |
+|---|---|
+| opencode | `%APPDATA%\com.deepexi.deepworks\deepworks-engine-data\xdg\data\opencode\opencode.db`（DeepWorks sidecar）、`%APPDATA%\opencode\opencode.db`、`%LOCALAPPDATA%\opencode\opencode.db`、`%USERPROFILE%\.local\share\opencode\opencode.db`、`%USERPROFILE%\.opencode\opencode.db` |
+| dsh | `%USERPROFILE%\.dsh\sessions`（可用 `DSH_HOME` 覆盖） |
+| codex | `%USERPROFILE%\.codex\sessions`（可用 `CODEX_HOME` 覆盖） |
+| claude | `%USERPROFILE%\.claude\projects`（可用 `CLAUDE_CONFIG_DIR` 覆盖） |
+| DeepWorks 应用态 | `%APPDATA%\com.deepexi.deepworks`（`workspace-state.json` 等） |
+
+Windows 上没有 `/proc`，opencode 进程发现走 PowerShell；读取**其它进程的环境变量**需要调试权限，
+所以 `--pid` 的规则是：先看命令行里的可执行文件路径（DeepWorks sidecar / 独立 opencode），
+再在"唯一可读默认库 / 唯一存在的默认库"时推断；有多个候选就报错并列出，绝不猜。
+这些判断都会写进 `sources --explain` 的"说明"里。
+
+终端提示：Go 输出的 UTF-8 在默认代码页的 cmd 里可能显示成方框或问号；重定向到文件始终是 UTF-8。
+程序启动时会把控制台输出代码页设为 65001（`chcp 65001` 等价），但字体不含中文时仍可能显示方框。
+
+完整验证（QEMU 上的 Windows 10 真机、四源导出 + 页面 + UI + `--pid`）见
+[docs/windows.md](docs/windows.md)。
 
 ## 命令
 
@@ -189,6 +226,7 @@ internal/cmd/               命令层：只翻译参数 → 调 app
 internal/app/               用例层：定位→取数→派生→输出
 internal/session/           领域模型（纯类型）+ toolsem
 internal/source/            Source 接口、能力位、Store/Locator/Query、共享过滤排序、前缀解析
+internal/platform/          OS 适配器：家目录/配置目录/进程/命令执行/浏览器（启动按 runtime.GOOS 选择）
 internal/source/{opencode,dsh,codex,claude}/   四个适配器
 internal/source/jsonl/      逐行读 + zstd + torn tail 容忍
 internal/trace/             视图层：旧导出适配、Normalize、渲染、页面资源
@@ -205,7 +243,8 @@ internal/table/             CJK 宽度对齐
 ## 开发与验证
 
 ```bash
-make verify     # gofmt + go vet + go test
+make verify     # gofmt + go vet + go test + Windows 交叉编译
+make build-windows # 产出 out/sesscope.exe
 make smoke      # 真机四源端到端：每源导出 1 个会话 + 页面冒烟，报告写 out/smoke/report.json
 make sources    # 带 --explain 的来源清单
 make doctor     # 体检 + 未注册记录
@@ -226,6 +265,8 @@ make doctor     # 体检 + 未注册记录
 - codex 的思考内容多为加密；工具状态与起止时间由"是否出现输出记录"推断（有诊断）。
 - claude 本机样本未出现 thinking / compaction，能力位按"不保证"处理。
 - 大会话没有虚拟滚动：几百条消息没问题，再大需要优化。
+- Windows 读不到其它进程的环境变量：`--pid` 只能按命令行路径/唯一默认库推断；多候选时如实报错。
+- Windows 默认控制台字体可能没有中文字形，页面/导出不受影响；看中文请用支持 CJK 的终端或重定向到文件。
 
 ## 路线图
 

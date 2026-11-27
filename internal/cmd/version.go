@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/spf13/cobra"
 
@@ -20,6 +21,7 @@ func newVersionCommand(version string, env *app.Env) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !outputOpts.asJSON {
 				fmt.Fprintf(cmd.OutOrStdout(), "sesscope %s"+NL, version)
+				fmt.Fprintf(cmd.OutOrStdout(), "  平台      %s/%s（adapter %s）"+NL, runtime.GOOS, runtime.GOARCH, env.Platform.Kind())
 				for _, item := range env.Registry.All() {
 					fmt.Fprintf(cmd.OutOrStdout(), "  %-10s %s"+NL, item.ID(), describeCapabilities(item.Capabilities()))
 				}
@@ -34,6 +36,9 @@ func newVersionCommand(version string, env *app.Env) *cobra.Command {
 			}
 			return cli.WriteJSON(cmd.OutOrStdout(), "sesscope.version.v1", map[string]any{
 				"version": version, "sources": sources,
+				"platform": map[string]any{
+					"goos": runtime.GOOS, "goarch": runtime.GOARCH, "adapter": env.Platform.Kind(),
+				},
 			})
 		},
 	}

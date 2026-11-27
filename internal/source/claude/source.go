@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gzzyj/sesscope/internal/platform"
 	"github.com/gzzyj/sesscope/internal/session"
 	"github.com/gzzyj/sesscope/internal/session/toolsem"
 	"github.com/gzzyj/sesscope/internal/source"
@@ -24,10 +25,19 @@ const formatName = "claude/jsonl"
 //
 // 存储形态：$CLAUDE_CONFIG_DIR/projects/<cwd-slug>/<uuid>.jsonl
 // 没有进程可探测；项目目录名是 cwd 的转义，真实 cwd 以记录里的字段为准。
-type Adapter struct{}
+type Adapter struct{ platform platform.Adapter }
 
 // New 返回 claude 适配器。
-func New() *Adapter { return &Adapter{} }
+func New(adapters ...platform.Adapter) *Adapter {
+	var p platform.Adapter
+	if len(adapters) > 0 {
+		p = adapters[0]
+	}
+	if p == nil {
+		p = platform.Detect()
+	}
+	return &Adapter{platform: p}
+}
 
 // ID 实现 source.Source。
 func (a *Adapter) ID() session.SourceID { return session.Claude }
@@ -70,9 +80,9 @@ func (a *Adapter) Locate(ctx context.Context, l source.Locator) ([]source.Store,
 		rule = "l1:env CLAUDE_CONFIG_DIR"
 	}
 	if home == "" {
-		userHome, err := os.UserHomeDir()
+		userHome, err := a.platform.HomeDir()
 		if err != nil {
-			return nil, fmt.Errorf("取 HOME：%w", err)
+			return nil, err
 		}
 		home = filepath.Join(userHome, ".claude")
 		rule = "l2:claude-default"

@@ -155,6 +155,9 @@ type Process struct {
 	StartedMs   int64
 	Store       string
 	StoreExists bool
+	// Note 说明"这个进程的存储/环境是怎么推断出来的、哪一步读不到"；
+	// sources --explain 会显示，不允许静默降级。
+	Note string
 }
 
 // Check 是体检的一条结果。

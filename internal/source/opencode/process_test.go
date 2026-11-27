@@ -1,44 +1,40 @@
 package opencode
 
 import (
-	"os"
 	"testing"
 )
 
-func TestReadEnvironValue(t *testing.T) {
-	if got := readEnvironValue(os.Getpid(), "HOME"); got == "" {
-		t.Error("应能读到当前进程的 HOME")
+func TestPortOf(t *testing.T) {
+	cases := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"opencode", "--port", "4096"}, "4096"},
+		{[]string{"opencode", "--port=4097"}, "4097"},
+		{[]string{"opencode", "serve", "--port", "4098", "--hostname", "127.0.0.1"}, "4098"},
+		{[]string{"opencode"}, ""},
+		{[]string{"opencode", "--port"}, ""},
 	}
-	if got := readEnvironValue(os.Getpid(), "NOT_A_REAL_VAR_XYZ"); got != "" {
-		t.Errorf("不存在的变量应返回空，得到 %q", got)
-	}
-}
-
-func TestReadPPID(t *testing.T) {
-	if ppid := readPPID(os.Getpid()); ppid <= 0 {
-		t.Errorf("当前进程的 PPID = %d，应当 > 0", ppid)
-	}
-}
-
-func TestDiscoverProcessesExcludesSelf(t *testing.T) {
-	processes, err := DiscoverProcesses()
-	if err != nil {
-		t.Fatalf("扫描进程：%v", err)
-	}
-	for _, process := range processes {
-		if process.PID == os.Getpid() {
-			t.Fatal("不应把本工具自己列进去")
-		}
-		if process.PID <= 0 || process.Name == "" {
-			t.Errorf("进程信息不完整：%+v", process)
+	for _, item := range cases {
+		if got := portOf(item.args); got != item.want {
+			t.Errorf("portOf(%v) = %q，期望 %q", item.args, got, item.want)
 		}
 	}
 }
 
-func TestDBPathForPIDRejectsNonOpencode(t *testing.T) {
-	// 用 1 号进程（init/systemd）测试：它不是 opencode 进程
-	if _, err := DBPathForPID(1); err == nil {
-		t.Skip("1 号进程恰好叫 opencode？跳过")
+func TestIsOpencodeProcessName(t *testing.T) {
+	cases := map[string]bool{
+		"opencode":         true,
+		"OpenCode":         true,
+		"opencode-server":  true,
+		"opencode-trace":   false,
+		"node":             false,
+		"deepworks-engine": false,
+	}
+	for name, want := range cases {
+		if got := isOpencodeProcessName(name); got != want {
+			t.Errorf("isOpencodeProcessName(%q) = %t，期望 %t", name, got, want)
+		}
 	}
 }
 

@@ -7,14 +7,16 @@
 
 | 来源 | 默认根 | 指纹（必须同时满足） | 版本信号 |
 |---|---|---|---|
-| opencode | <home>/opencode/opencode.db，默认 DeepWorks sidecar 库 + ~/.local/share/opencode/opencode.db | SQLite 表集含 session/message/part（v1）或 session_v2/session_message/session_part（v2） | 表集 |
+| opencode | Linux/macOS：~/.config/com.deepexi.deepworks/…/opencode.db + ~/.local/share/opencode/opencode.db；Windows：%APPDATA%\com.deepexi.deepworks\…\opencode.db + %LOCALAPPDATA%\opencode\opencode.db + %APPDATA%\opencode\opencode.db + %USERPROFILE%\.local\share\opencode\opencode.db | SQLite 表集含 session/message/part（v1）或 session_v2/session_message/session_part（v2） | 表集 |
 | dsh | $DSH_HOME/sessions，默认 ~/.dsh/sessions | <slug>/session-<uuid>/session.v*.jsonl.zstd，首行是 {"type":"session","version":N} | 头行 version（v3/v4） |
 | codex | $CODEX_HOME/sessions，默认 ~/.codex/sessions | YYYY/MM/DD/rollout-*.jsonl.zst，首行是 session_meta | payload.cli_version |
 | claude | $CLAUDE_CONFIG_DIR/projects，默认 ~/.claude/projects | <slug>/<uuid>.jsonl，任一行含 sessionId 且 type ∈ user/assistant/system | 记录里的 version |
 
 - 定位优先级：--store > --home > 环境变量 > 默认根（见 docs/cli.md §3）。
-- 只有 opencode 有进程可探测（/proc + XDG_DATA_HOME），其余来源**不做进程发现**；
-  列表里的 UPDATED 对文件型来源取自文件修改时间，表格打 *。
+- 只有 opencode 有进程可探测：Linux/macOS 读 /proc（或 ps），Windows 走 PowerShell `Get-CimInstance Win32_Process`；
+  其余来源**不做进程发现**。Windows 读不到其它进程的环境变量，`--pid` 只能按命令行里的程序路径或
+  "唯一可读/唯一存在的默认库"推断，多个候选会报错并列出，规则写进 `sources --explain`。
+- 列表里的 UPDATED 对文件型来源取自文件修改时间，表格打 *。
 - 同一会话多份文件（dsh v3/v4）→ 取最高版本。
 
 ## 2. opencode（SQLite）
@@ -24,6 +26,9 @@
 | 存储 | 只读打开（mode=ro），可读 WAL；不写库 |
 | 映射 | project/workspace → Workspace；session → Meta；message.data → Message（tokens/error/time.completed）；part.data → Part（state.status/input/output/error/time、compaction.auto、file） |
 | 能力 | 进程发现、原生工作区、SQL 过滤、标题、子会话、token、成本、思考文本、工具参数/输出/状态、压缩记录 |
+| Windows 发现 | DeepWorks sidecar 在 `%APPDATA%\com.deepexi.deepworks\deepworks-engine-data\xdg\data\opencode\opencode.db`；独立 opencode 还可能落在 `%LOCALAPPDATA%\opencode\opencode.db`、`%APPDATA%\opencode\opencode.db`、`%USERPROFILE%\.local\share\opencode\opencode.db`（xdg-basedir 版本）、`%USERPROFILE%\.opencode\opencode.db`（旧版） |
+| Windows 进程 | PowerShell `Get-CimInstance Win32_Process` 拿 PID/PPID/命令行/启动时间；进程环境不可读（诊断见 `sources --explain`）；`tasklist` 仅作退化路径 |
+| SQLite DSN | Windows 盘符走 `file:///C:/...`，避免 `file:C:...` 被当成 URL scheme；POSIX 同样走 `file:///...`，由 modernc/sqlite 统一解析 |
 | 缺口 | v2 新 schema 尚未实现读取（本机该库 0 会话，只有 schema）；cost 常为 0（本机实测）；workspace 表常为空，工作区按 project 兜底 |
 
 ## 3. dsh（JSONL + zstd）

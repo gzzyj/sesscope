@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gzzyj/sesscope/internal/platform"
 	"github.com/gzzyj/sesscope/internal/session"
 	"github.com/gzzyj/sesscope/internal/source"
 	"github.com/gzzyj/sesscope/internal/source/jsonl"
@@ -21,10 +22,19 @@ import (
 //
 // 存储形态：~/.dsh/sessions/<cwd-slug>/session-<uuid>/session.v{3,4}.jsonl.zstd
 // （append-only JSONL + zstd 多帧；正在写的会话尾部可能被截断）。
-type Adapter struct{}
+type Adapter struct{ platform platform.Adapter }
 
 // New 返回 dsh 适配器。
-func New() *Adapter { return &Adapter{} }
+func New(adapters ...platform.Adapter) *Adapter {
+	var p platform.Adapter
+	if len(adapters) > 0 {
+		p = adapters[0]
+	}
+	if p == nil {
+		p = platform.Detect()
+	}
+	return &Adapter{platform: p}
+}
 
 // ID 实现 source.Source。
 func (a *Adapter) ID() session.SourceID { return session.DSH }
@@ -67,9 +77,9 @@ func (a *Adapter) Locate(ctx context.Context, l source.Locator) ([]source.Store,
 		rule = "l1:env DSH_HOME"
 	}
 	if home == "" {
-		userHome, err := os.UserHomeDir()
+		userHome, err := a.platform.HomeDir()
 		if err != nil {
-			return nil, fmt.Errorf("取 HOME：%w", err)
+			return nil, err
 		}
 		home = filepath.Join(userHome, ".dsh")
 		rule = "l2:dsh-default"

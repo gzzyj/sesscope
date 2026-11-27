@@ -4,6 +4,7 @@
 package all
 
 import (
+	"github.com/gzzyj/sesscope/internal/platform"
 	"github.com/gzzyj/sesscope/internal/source"
 	"github.com/gzzyj/sesscope/internal/source/claude"
 	"github.com/gzzyj/sesscope/internal/source/codex"
@@ -12,11 +13,12 @@ import (
 )
 
 // Sources 返回全部已实现的来源适配器（顺序即默认展示顺序）。
-func Sources() []source.Source {
+// 所有来源共享同一个 OS 适配器：目录、进程、命令执行都从这里走。
+func Sources(p platform.Adapter) []source.Source {
 	return []source.Source{
-		opencode.New(),
-		dsh.New(),
-		codex.New(),
-		claude.New(),
+		opencode.New(p),
+		dsh.New(p),
+		codex.New(p),
+		claude.New(p),
 	}
 }

@@ -107,6 +107,12 @@ func printStatuses(cmd *cobra.Command, report *app.StatusReport, explain bool) e
 			}
 			for _, process := range row.Processes {
 				fmt.Fprintf(stderr, "  进程：pid %d %s %s"+NL, process.PID, process.Name, process.Port)
+				if process.Store != "" {
+					fmt.Fprintf(stderr, "        库：%s（存在=%t）"+NL, process.Store, process.StoreExists)
+				}
+				if process.Note != "" {
+					fmt.Fprintf(stderr, "        说明：%s"+NL, process.Note)
+				}
 			}
 		}
 	}

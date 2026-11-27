@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gzzyj/sesscope/internal/platform"
 	"github.com/gzzyj/sesscope/internal/session"
 	"github.com/gzzyj/sesscope/internal/source"
 	"github.com/gzzyj/sesscope/internal/source/all"
@@ -24,14 +25,21 @@ var NL = string(rune(10))
 // Env 是用例层的依赖。
 type Env struct {
 	Registry *source.Registry
+	Platform platform.Adapter
 	Stdout   io.Writer
 	Stderr   io.Writer
 	Now      time.Time
 }
 
-// NewEnv 装配全部来源。
-func NewEnv() *Env {
-	return &Env{Registry: source.NewRegistry(all.Sources()...)}
+// NewEnv 按当前 OS 装配全部来源。
+func NewEnv() *Env { return NewEnvWith(platform.Detect()) }
+
+// NewEnvWith 用指定 OS 适配器装配（测试与交叉验证用）。
+func NewEnvWith(p platform.Adapter) *Env {
+	if p == nil {
+		p = platform.Detect()
+	}
+	return &Env{Platform: p, Registry: source.NewRegistry(all.Sources(p)...)}
 }
 
 // Clock 返回"现在"，便于测试固定时间。

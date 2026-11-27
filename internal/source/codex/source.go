@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gzzyj/sesscope/internal/platform"
 	"github.com/gzzyj/sesscope/internal/session"
 	"github.com/gzzyj/sesscope/internal/source"
 	"github.com/gzzyj/sesscope/internal/source/jsonl"
@@ -22,10 +23,19 @@ const formatName = "codex/rollout"
 //
 // 存储形态：$CODEX_HOME/sessions/YYYY/MM/DD/rollout-<ts>-<uuid>.jsonl.zst
 // 无进程可探测；会话标题、工作区都从文件内容派生。
-type Adapter struct{}
+type Adapter struct{ platform platform.Adapter }
 
 // New 返回 codex 适配器。
-func New() *Adapter { return &Adapter{} }
+func New(adapters ...platform.Adapter) *Adapter {
+	var p platform.Adapter
+	if len(adapters) > 0 {
+		p = adapters[0]
+	}
+	if p == nil {
+		p = platform.Detect()
+	}
+	return &Adapter{platform: p}
+}
 
 // ID 实现 source.Source。
 func (a *Adapter) ID() session.SourceID { return session.Codex }
@@ -68,9 +78,9 @@ func (a *Adapter) Locate(ctx context.Context, l source.Locator) ([]source.Store,
 		rule = "l1:env CODEX_HOME"
 	}
 	if home == "" {
-		userHome, err := os.UserHomeDir()
+		userHome, err := a.platform.HomeDir()
 		if err != nil {
-			return nil, fmt.Errorf("取 HOME：%w", err)
+			return nil, err
 		}
 		home = filepath.Join(userHome, ".codex")
 		rule = "l2:codex-default"

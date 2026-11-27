@@ -12,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/gzzyj/sesscope/internal/platform"
 )
 
 // Workspace 是 DeepWorks 的一个工作区。
@@ -49,20 +51,31 @@ type State struct {
 }
 
 // ConfigDir 返回 DeepWorks 配置目录（可用 DEEPWORKS_CONFIG_HOME 覆盖）。
-func ConfigDir() (string, error) {
+func ConfigDir() (string, error) { return ConfigDirFor(platform.Detect()) }
+
+// ConfigDirFor 按 OS 适配器返回 DeepWorks 配置目录：
+//   - Linux/macOS：$XDG_CONFIG_HOME/com.deepexi.deepworks（默认 ~/.config/...）
+//   - Windows：%APPDATA%\\com.deepexi.deepworks
+func ConfigDirFor(p platform.Adapter) (string, error) {
 	if custom := strings.TrimSpace(os.Getenv("DEEPWORKS_CONFIG_HOME")); custom != "" {
 		return custom, nil
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("取 HOME：%w", err)
+	if p == nil {
+		p = platform.Detect()
 	}
-	return filepath.Join(home, ".config", "com.deepexi.deepworks"), nil
+	base := p.AppDataDir()
+	if base == "" {
+		return "", fmt.Errorf("取应用配置目录失败：家目录与 APPDATA/XDG_CONFIG_HOME 都为空")
+	}
+	return filepath.Join(base, "com.deepexi.deepworks"), nil
 }
 
-// ReadState 读取并合并工作区状态；任一附属文件读不到只记 warning，不影响主清单。
-func ReadState() (*State, error) {
-	dir, err := ConfigDir()
+// ReadState 读取并合并工作区状态（当前 OS）。
+func ReadState() (*State, error) { return ReadStateFor(platform.Detect()) }
+
+// ReadStateFor 读取并合并工作区状态；任一附属文件读不到只记 warning，不影响主清单。
+func ReadStateFor(p platform.Adapter) (*State, error) {
+	dir, err := ConfigDirFor(p)
 	if err != nil {
 		return nil, err
 	}

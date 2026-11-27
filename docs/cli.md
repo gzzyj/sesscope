@@ -50,7 +50,7 @@
 |---|---|---|
 | ① | --store <path>（旧 --db 等价） | 直接指定存储：SQLite 库文件 / 会话目录 / jsonl 文件 |
 | ② | --home <dir> | 产品数据根：opencode 的 share 目录、~/.dsh、~/.codex、~/.claude |
-| ③ | --pid <pid> | 从进程环境推导存储（当前仅 opencode 支持） |
+| ③ | --pid <pid> | 从进程环境推导存储（opencode；Windows 无进程环境权限，改按命令行/唯一默认库推断并打印规则） |
 | ④ | 环境变量 | OPENCODE_TRACE_DB、DSH_HOME、CODEX_HOME、CLAUDE_CONFIG_DIR |
 | ⑤ | 已知默认路径 | 各来源文档化的默认根（见 docs/sources.md） |
 
@@ -97,7 +97,7 @@
 | --source / -s | auto | 限定来源 |
 | --store / -d | 空 | 指定存储 |
 | --home | 空 | 产品数据根 |
-| --pid / -p | 0 | 从进程推导（opencode） |
+| --pid / -p | 0 | 从进程推导（opencode）。Linux 读 /proc/<pid>/environ；Windows 按命令行里的程序路径或唯一默认库推断 |
 | --explain | false | 打印每个存储命中的规则与证据 |
 | --json / -j | false | 机器可读 |
 

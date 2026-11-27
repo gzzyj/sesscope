@@ -83,7 +83,7 @@ func (e *Env) Workspaces(ctx context.Context, names []string, locator source.Loc
 
 	// 1) 应用态工作区（DeepWorks）：名字/端口/凭据都在那边。
 	if includeAppState {
-		state, stateErr := deepworks.ReadState()
+		state, stateErr := deepworks.ReadStateFor(e.Platform)
 		if stateErr != nil {
 			report.Notes = append(report.Notes, "没读到 DeepWorks 工作区状态（"+stateErr.Error()+"），退回各来源自己的工作区")
 		} else {

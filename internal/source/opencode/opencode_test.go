@@ -251,24 +251,6 @@ func TestExportRejectsMissingSession(t *testing.T) {
 	}
 }
 
-func TestDiscover(t *testing.T) {
-	if _, err := Discover("definitely/not/here.db"); err == nil {
-		t.Error("不存在的 -db 应报错")
-	}
-	dir := t.TempDir()
-	path, err := testfixture.Build(dir)
-	if err != nil {
-		t.Fatalf("建 fixture：%v", err)
-	}
-	got, err := Discover(path)
-	if err != nil {
-		t.Fatalf("Discover：%v", err)
-	}
-	if got != path {
-		t.Errorf("Discover = %s，期望 %s", got, path)
-	}
-}
-
 func ids(sessions []SessionRow) []string {
 	out := make([]string, 0, len(sessions))
 	for _, session := range sessions {

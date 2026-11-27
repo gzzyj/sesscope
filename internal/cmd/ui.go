@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -446,7 +444,7 @@ func (p *picker) renderAndOpen(item session.Summary) bool {
 	fmt.Fprintf(p.out, "\n已渲染：%s（%d 字节）\n", path, len(html))
 	if p.noBrowser {
 		fmt.Fprintln(p.out, "（--no-browser：未自动打开）按 Enter 回到会话列表")
-	} else if err := openInBrowser(path); err != nil {
+	} else if err := p.env.Platform.OpenBrowser(p.ctx, path); err != nil {
 		fmt.Fprintf(p.out, "没能自动打开浏览器（%v），请手动打开：%s\n按 Enter 返回会话列表", err, path)
 	} else {
 		fmt.Fprintln(p.out, "浏览器已打开；关掉它之后按 Enter 回到会话列表")
@@ -487,26 +485,6 @@ func valueOr(value, fallback string) string {
 		return fallback
 	}
 	return value
-}
-
-func openInBrowser(path string) error {
-	var name string
-	var args []string
-	switch runtime.GOOS {
-	case "darwin":
-		name, args = "open", []string{path}
-	case "windows":
-		name, args = "rundll32", []string{"url.dll,FileProtocolHandler", path}
-	default:
-		name, args = "xdg-open", []string{path}
-	}
-	command := exec.Command(name, args...)
-	command.Stdout, command.Stderr = io.Discard, io.Discard
-	if err := command.Start(); err != nil {
-		return err
-	}
-	go func() { _ = command.Wait() }()
-	return nil
 }
 
 func isTerminal(w io.Writer) bool {

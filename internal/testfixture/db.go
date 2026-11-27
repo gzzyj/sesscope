@@ -4,7 +4,10 @@ package testfixture
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
 	"path/filepath"
+	"runtime"
+	"strings"
 
 	_ "modernc.org/sqlite"
 )
@@ -30,10 +33,24 @@ const schemaDDL = "" +
 	"create table message (id text primary key, session_id text not null, time_created integer not null, time_updated integer not null, data text not null);" +
 	"create table part (id text primary key, message_id text not null, session_id text not null, time_created integer not null, time_updated integer not null, data text not null);"
 
+// sqliteDSN 与生产代码一致：Windows 盘符走 file:///C:/...，避免被当成 URL scheme。
+func sqliteDSN(path string) string {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		absolute = path
+	}
+	slash := filepath.ToSlash(absolute)
+	if runtime.GOOS == "windows" && !strings.HasPrefix(slash, "/") {
+		slash = "/" + slash
+	}
+	uri := url.URL{Scheme: "file", Path: slash}
+	return uri.String()
+}
+
 // Build 在 dir 下创建一个 opencode.db 并写入固定的测试数据，返回库路径。
 func Build(dir string) (string, error) {
 	path := filepath.Join(dir, "opencode.db")
-	conn, err := sql.Open("sqlite", "file:"+path)
+	conn, err := sql.Open("sqlite", sqliteDSN(path))
 	if err != nil {
 		return "", fmt.Errorf("建库：%w", err)
 	}

@@ -5,13 +5,23 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || date +%Y%
 GO ?= go
 SESSION ?=
 
-.PHONY: all build install fmt vet test lint verify golden demo list export sources doctor audit conformance-claude smoke clean
+.PHONY: all build build-windows cross install fmt vet test lint verify golden demo list export sources doctor audit conformance-claude smoke clean
 
 all: build
 
 ## build: 编译单文件二进制（内嵌 UI 资源）
 build:
 	$(GO) build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o $(BINARY) .
+
+## build-windows: 交叉编译 Windows 单文件二进制（纯 Go，不需要 cgo）
+build-windows:
+	GOOS=windows GOARCH=amd64 $(GO) build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o out/sesscope.exe .
+
+## cross: 交叉编译检查（Windows amd64 + macOS arm64，不产出安装包）
+cross:
+	GOOS=windows GOARCH=amd64 $(GO) build ./...
+	GOOS=windows GOARCH=amd64 $(GO) vet ./...
+	GOOS=darwin GOARCH=arm64 $(GO) build ./...
 
 ## install: 安装到 go install 的路径（GOBIN，未设置时为 GOPATH/bin）
 install:
@@ -29,8 +39,8 @@ vet:
 test:
 	$(GO) test ./...
 
-## verify: 全套检查（格式 + 静态 + 测试）
-verify: fmt vet test
+## verify: 全套检查（格式 + 静态 + 测试 + 交叉编译）
+verify: fmt vet test cross
 
 ## audit: 字段门禁：检查抽象会话里该有却没有的字段（需本机有会话；有缺口时非 0 退出）
 audit: build

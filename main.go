@@ -23,6 +23,7 @@ func main() {
 // run 是一次完整执行；测试直接调它，不经过 os.Exit。
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	env := app.NewEnv()
+	env.Platform.PrepareConsole()
 	env.Stdout = stdout
 	env.Stderr = stderr
 	stdio := cli.IO{In: stdin, Out: stdout, Err: stderr}
